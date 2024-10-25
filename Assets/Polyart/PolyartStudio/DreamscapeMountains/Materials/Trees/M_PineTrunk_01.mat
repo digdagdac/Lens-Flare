@@ -13,6 +13,7 @@ Material:
   - _USEDFORTRUNK_ON
   m_InvalidKeywords:
   - TVE_FEATURE_CLIP
+  - _ALPHATEST_ON
   - _TRUNKMATERIAL_ON
   m_LightmapFlags: 0
   m_EnableInstancingVariants: 1
@@ -127,10 +128,24 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _AOIntensity: 1
+    - _AlphaClip: 0.5
     - _AlphaClipValue: 0.5
+    - _AlphaCutoff: 0.5
     - _BoundsHeightValue: 3
     - _BoundsRadiusValue: 2.04
     - _CategoryDetail: 1
@@ -171,6 +186,7 @@ Material:
     - _EmissiveMultiplier: 0
     - _EmissiveTexMaxValue: 1
     - _EmissiveTexMinValue: 0
+    - _EnvironmentReflections: 1
     - _FoliageEmissiveIntensity: 0
     - _FoliageNormalIntensity: 1
     - _FoliageRoughness: 0.85
@@ -217,6 +233,9 @@ Material:
     - _MotionVariation_10: 0
     - _MotionVariation_20: 0
     - _NormalIntensity: 0.804
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
     - _RenderClip: 1
     - _RenderCull: 0
     - _RenderDecals: 0
@@ -236,6 +255,7 @@ Material:
     - _SecondUVsScaleMode: 0
     - _SmoothnessMultiplier: 0.58
     - _SpaceSubsurface: 0
+    - _SpecularHighlights: 1
     - _SubsurfaceAmbientValue: 0.2
     - _SubsurfaceAngleValue: 8
     - _SubsurfaceDiffusion: 0
@@ -279,6 +299,7 @@ Material:
     - _DetailBlendRemap: {r: 0, g: 0, b: 0, a: 0}
     - _DetailMaskRemap: {r: 0, g: 0, b: 0, a: 0}
     - _DetailMeshRemap: {r: 0, g: 0, b: 0, a: 0}
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _EmissiveColor: {r: 0, g: 0, b: 0, a: 0}
     - _EmissiveTexRemap: {r: 0, g: 0, b: 0, a: 0}
     - _EmissiveUVs: {r: 1, g: 1, b: 0, a: 0}

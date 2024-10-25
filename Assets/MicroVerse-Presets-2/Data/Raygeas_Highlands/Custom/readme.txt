@@ -1,0 +1,1 @@
+Grass_1 and Grass_2: the grass prefabs of the asset contains LODs which isn't supported by Unity Terain. So the LOD group of the prefab was removed and a new prefab created.

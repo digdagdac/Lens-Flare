@@ -1,0 +1,1 @@
+The grass was a parented gameobject with the mesh as *_LOD0 inside and nothing else. Unity doesn't seem to recognize that when drawn as mesh detail. So I extracted that grass gameobject and removed the LOD0 and created a new prefab from it.
