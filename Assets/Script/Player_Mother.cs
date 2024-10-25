@@ -64,7 +64,6 @@ namespace LensFlare.InGame
                 }
 
 
-
                 _playerRigidBody.AddForce(inputVelocity * Time.deltaTime * _moveSpeed);
 
                 // Limit max velocity
