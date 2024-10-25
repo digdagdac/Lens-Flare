@@ -24,9 +24,12 @@ namespace LensFlare.InGame
         InputAction _offCameraStateAction;
         InputAction _onCameraShutterAction;
 
+        Camera _mainCamera;
 
         protected override void Start()
         {
+            _mainCamera = Camera.main;
+
             _moveAction = InputSystem.actions.FindAction("Move");
             _jumpAction = InputSystem.actions.FindAction("Jump");
             _interectAction = InputSystem.actions.FindAction("Interact");
@@ -42,27 +45,25 @@ namespace LensFlare.InGame
             // Input and Move
             {
 
-                if (Input.GetKey(KeyCode.UpArrow) == true)
+                if (Input.GetKey(KeyCode.W) == true)
                 {
-                    inputVelocity.z = 1f;
+                    inputVelocity += _mainCamera.transform.forward;
                 }
 
-                if (Input.GetKey(KeyCode.DownArrow) == true)
+                if (Input.GetKey(KeyCode.S) == true)
                 {
-                    inputVelocity.z = -1f;
+                    inputVelocity += _mainCamera.transform.forward * -1f;
                 }
 
-                if (Input.GetKey(KeyCode.RightArrow) == true)
+                if (Input.GetKey(KeyCode.D) == true)
                 {
-                    inputVelocity.x = 1f;
-
+                    inputVelocity += _mainCamera.transform.right;
                 }
 
-                if (Input.GetKey(KeyCode.LeftArrow) == true)
+                if (Input.GetKey(KeyCode.A) == true)
                 {
-                    inputVelocity.x = -1f;
+                    inputVelocity += _mainCamera.transform.right * -1f;
                 }
-
 
                 _playerRigidBody.AddForce(inputVelocity * Time.deltaTime * _moveSpeed);
 
