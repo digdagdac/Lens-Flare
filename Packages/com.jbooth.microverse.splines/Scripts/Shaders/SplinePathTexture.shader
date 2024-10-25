@@ -36,8 +36,8 @@
                 float2 uv : TEXCOORD0;
             };
 
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/SplatMerge.cginc"
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/SplatMerge.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
 
             sampler2D _WeightMap;
             sampler2D _IndexMap;
@@ -107,7 +107,10 @@
                 //clip(totalWeight >= 1 ? -1 : 1);
 
                 half4 indexMap = tex2D(_IndexMap, i.uv) * 32;
-                float2 sdfUV = i.uv - 1.0 / _AlphaMapSize * 0.5;
+                // center the pixel lookup
+                float2 halfPixel = _SplineSDF_TexelSize.xy * 0.5; 
+                float2 sdfUV = lerp(halfPixel, 1-halfPixel, i.uv);
+                //float2 sdfUV = i.uv;// - 1.0 / _AlphaMapSize;
                 float2 data = tex2D(_SplineSDF, sdfUV).xy;
 
                 float2 noiseUV = i.uv;

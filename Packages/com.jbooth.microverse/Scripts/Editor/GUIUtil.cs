@@ -1,9 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
-
+using static JBooth.MicroVerseCore.FilterSet;
 
 namespace JBooth.MicroVerseCore
 {
@@ -50,7 +49,14 @@ namespace JBooth.MicroVerseCore
             GUI.Label(rect, Application.unityVersion);
             rect.x += rect.width-30;
             GUI.Label(rect, _version);
-            
+            rect.y -= 22;
+            rect.height = 18;
+            rect.width = 18;
+            rect.x += 10;
+            if (GUI.Button(rect, "?"))
+            {
+                Application.OpenURL("https://docs.google.com/document/d/1R4Ru7GKdVLLNVmfVwcX7RPRPrvkN0l36LNqm9LIMtno/edit?usp=sharing");
+            }
         }
 
         public static Texture2D FindDefaultTexture(string name)
@@ -244,7 +250,7 @@ namespace JBooth.MicroVerseCore
             return (GUILayout.Button(label, b ? toggleButtonStyle : GUI.skin.label, GUILayout.Width(14)));
         }
 
-        public static int SelectionGrid(int index, ref Vector2 scroll, GUIContent[] contents, int imageSize = 64, int maxX = 4)
+        public static int SelectionGrid(int index, ref Vector2 scroll, GUIContent[] contents, int imageSize = 64, int maxX = 4, bool supportUnselected = false)
         {
             EditorGUILayout.BeginHorizontal();
             for (int i = 0; i < contents.Length; ++i)
@@ -259,7 +265,10 @@ namespace JBooth.MicroVerseCore
 
             }
 
-            index = Mathf.Clamp(index, 0, contents.Length - 1);
+            // if unselected is allowed, then the index is -1 which needs to be available for selection
+            int minIndex = supportUnselected ? -1 : 0;
+
+            index = Mathf.Clamp(index, minIndex, contents.Length - 1);
             EditorGUILayout.EndHorizontal();
             return index;
         }
@@ -438,6 +447,18 @@ namespace JBooth.MicroVerseCore
                     if (ReferenceEquals(PreviewRenderer.noisePreview, noise))
                         PreviewRenderer.noisePreview = null;
                 }
+
+                // check for scale being 0 and setting it to 1;
+                // was a bug once with scale = 0 and offset = 1, but the existing presets would have those now when the user switches to texture
+                // scale shouldn't be 0 anyway
+                if( noiseType == Noise.NoiseType.Texture)
+                {
+                    if( noise.textureST.x == 0 && noise.textureST.y == 0 && noise.textureST.z == 1 && noise.textureST.w == 1 )
+                    {
+                        noise.textureST = new Vector4(1, 1, 0, 0);
+                    }
+                }
+
                 Undo.RecordObject(owner, "Adjust Noise");
                 noise.noiseType = noiseType;
                 EditorUtility.SetDirty(owner);
@@ -533,6 +554,7 @@ namespace JBooth.MicroVerseCore
                 Vector2 offset = new Vector2(noise.textureST.z, noise.textureST.w);
                 scale = EditorGUILayout.Vector2Field("Scale", scale);
                 offset = EditorGUILayout.Vector2Field("Offset", offset);
+                
                 EditorGUILayout.BeginHorizontal();
 
                 float prevLabelWidth = EditorGUIUtility.labelWidth;
@@ -903,6 +925,14 @@ namespace JBooth.MicroVerseCore
             if (eventType == EventType.MouseUp && Event.current.button == 0)
             {
                 activePainting = false;
+                if (pm.updateMode == FalloffFilter.PaintMask.UpdateMode.EndStroke)
+                {
+                    IModifier mod = (IModifier)owner;
+                    if (mod != null)
+                        MicroVerse.instance.Invalidate(mod.GetBounds());
+                    else
+                        MicroVerse.instance.Invalidate(null);
+                }
                 //Event.current.Use();
             }
             if (eventType == EventType.Layout)
@@ -927,12 +957,22 @@ namespace JBooth.MicroVerseCore
                 point.z *= Mathf.Lerp(1, 3.14f, tiltX);
                 point.x += 0.5f;
                 point.z += 0.5f;
-                pm.Paint(point.x, point.z, brushSize, brushFalloff, brushFlow, targetValue, deltaTime);
-                IModifier mod = (IModifier)owner;
-                if (mod != null)
-                    MicroVerse.instance.Invalidate(mod.GetBounds());
+                if (brushMode == BrushMode.Adjust)
+                {
+                    pm.Paint(point.x, point.z, brushSize, brushFalloff, brushFlow, targetValue, deltaTime);
+                }
                 else
-                    MicroVerse.instance.Invalidate(null);
+                {
+                    pm.Smooth(point.x, point.z, brushSize, brushFalloff, brushFlow, targetValue, deltaTime);
+                }
+                if (pm.updateMode == FalloffFilter.PaintMask.UpdateMode.EveryChange)
+                {
+                    IModifier mod = (IModifier)owner;
+                    if (mod != null)
+                        MicroVerse.instance.Invalidate(mod.GetBounds());
+                    else
+                        MicroVerse.instance.Invalidate(null);
+                }
             }
             EditorUtility.SetDirty(owner);
 
@@ -946,24 +986,33 @@ namespace JBooth.MicroVerseCore
         static float brushFlow = 20.0f;
         static Material previewBrushMaterial;
         static bool previewMask;
-        static void DoPaintGUI(Object owner, FalloffFilter.PaintMask pm)
+        public enum BrushMode
+        {
+            Adjust,
+            Smooth
+        }
+        static BrushMode brushMode = BrushMode.Adjust;
+
+        public static void DoPaintGUI(Object owner, FalloffFilter.PaintMask pm)
         {
             if (previewBrushMaterial == null)
             {
                 previewBrushMaterial = new Material(Shader.Find("Hidden/MicroVerse/PreviewBrushShader"));
             }
+            pm.updateMode = (FalloffFilter.PaintMask.UpdateMode)EditorGUILayout.EnumPopup("Update Mode", pm.updateMode);
             EditorGUILayout.LabelField("Brush Settings");
             using (new GUILayout.VerticalScope(GUI.skin.box))
             { 
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("", GUILayout.Width(32));
-                var brushPreviewRect = EditorGUILayout.GetControlRect(GUILayout.Width(76), GUILayout.Height(76));
+                var brushPreviewRect = EditorGUILayout.GetControlRect(GUILayout.Width(100), GUILayout.Height(100));
                 previewBrushMaterial.SetFloat("_Falloff", brushFalloff);
                 previewBrushMaterial.SetFloat("_Size", brushSize / 64.0f);
                 EditorGUI.DrawPreviewTexture(brushPreviewRect, Texture2D.whiteTexture, previewBrushMaterial);
 
                 {
                     EditorGUILayout.BeginVertical();
+                    brushMode = (BrushMode)EditorGUILayout.EnumPopup("Brush Mode", brushMode);
                     targetValue = EditorGUILayout.Slider("Target Value", targetValue, 0, 1.0f, GUILayout.ExpandWidth(true));
                     brushSize = EditorGUILayout.Slider("Size", brushSize, 1, 64);
                     brushFlow = EditorGUILayout.Slider("Flow", brushFlow, 0.1f, 40.0f);
@@ -1015,6 +1064,7 @@ namespace JBooth.MicroVerseCore
         static GUIContent CFilterMinMax = new GUIContent("Range", "Start and end of the falloff area, used to smoothly transition weights");
         static GUIContent CFilterTexture = new GUIContent("Texture", "The green channel will control the weight of the effect");
         static GUIContent CFilterSplineArea = new GUIContent("Spline Area", "The spline area to use");
+        static GUIContent CFilterPaintArea = new GUIContent("Paint Area", "The falloff paint area to use");
         static GUIContent CTextureSize = new GUIContent("Texture Size", "Size of the backing texture");
         public static void DrawFalloffFilter(Object owner, FalloffFilter f, Transform trans, bool allowGlobal, bool allowPaintMask = true)
         {
@@ -1026,6 +1076,7 @@ namespace JBooth.MicroVerseCore
             }
             EditorGUI.BeginChangeCheck();
             FalloffFilter.FilterType filterType = f.filterType;
+
             var old = filterType;
             if (allowPaintMask)
             {
@@ -1035,45 +1086,32 @@ namespace JBooth.MicroVerseCore
                 }
                 else
                 {
-                    FalloffFilter.FilterTypeNoGlobal noGlobal = (FalloffFilter.FilterTypeNoGlobal)((int)filterType - 1);
-                    if (filterType == FalloffFilter.FilterType.Global)
-                    {
-                        noGlobal = FalloffFilter.FilterTypeNoGlobal.Box;
-                        EditorUtility.SetDirty(owner);
-                    }
+                    FalloffFilter.FilterTypeNoGlobal noGlobal = FalloffFilter.CastEnum(f.filterType, FalloffFilter.FilterTypeNoGlobal.Box);
                     var nog = (FalloffFilter.FilterTypeNoGlobal)EditorGUILayout.EnumPopup(CFilterType, noGlobal);
-                    filterType = (FalloffFilter.FilterType)((int)nog + 1);
+                    filterType = FalloffFilter.CastEnum(nog, FalloffFilter.FilterType.Box);
                 }
             }
             else
             {
                 if (allowGlobal)
                 {
-                    FalloffFilter.FilterTypeNoPaintMask noPaintMask = (FalloffFilter.FilterTypeNoPaintMask)((int)filterType);
-                    if (filterType == FalloffFilter.FilterType.PaintMask)
-                    {
-                        noPaintMask = FalloffFilter.FilterTypeNoPaintMask.Box;
-                        EditorUtility.SetDirty(owner);
-                    }
-                    var nog = (FalloffFilter.FilterTypeNoGlobal)EditorGUILayout.EnumPopup(CFilterType, noPaintMask);
-                    filterType = (FalloffFilter.FilterType)((int)nog);
+                    FalloffFilter.FilterTypeNoPaintMask noPaintMask = FalloffFilter.CastEnum(f.filterType, FalloffFilter.FilterTypeNoPaintMask.Box);
+                    var nog = (FalloffFilter.FilterTypeNoPaintMask)EditorGUILayout.EnumPopup(CFilterType, noPaintMask);
+                    
+                    filterType = FalloffFilter.CastEnum(nog, FalloffFilter.FilterType.Box);
                 }
                 else
                 {
-                    FalloffFilter.FilterTypeNoGlobalNoPaintMask noGlobalOrPaint = (FalloffFilter.FilterTypeNoGlobalNoPaintMask)((int)filterType - 1);
-                    if (filterType == FalloffFilter.FilterType.Global || filterType == FalloffFilter.FilterType.PaintMask)
-                    {
-                        noGlobalOrPaint = FalloffFilter.FilterTypeNoGlobalNoPaintMask.Box;
-                        EditorUtility.SetDirty(owner);
-                    }
-                    var nog = (FalloffFilter.FilterTypeNoGlobal)EditorGUILayout.EnumPopup(CFilterType, noGlobalOrPaint);
-                    filterType = (FalloffFilter.FilterType)((int)nog + 1);
+                    FalloffFilter.FilterTypeNoPaintMask noGlobalOrPaint = FalloffFilter.CastEnum(f.filterType, FalloffFilter.FilterTypeNoPaintMask.Box);
+                    var nog = (FalloffFilter.FilterTypeNoGlobalNoPaintMask)EditorGUILayout.EnumPopup(CFilterType, noGlobalOrPaint);
+                    filterType = FalloffFilter.CastEnum(nog, FalloffFilter.FilterType.Box);
                 }
                 if (filterType != old)
                 {
                     if (filterType == FalloffFilter.FilterType.Global ||
                         old == FalloffFilter.FilterType.Global)
                     {
+                        EditorUtility.SetDirty(owner);
                         MicroVerse.instance?.Invalidate();
                     }
                 }
@@ -1084,7 +1122,7 @@ namespace JBooth.MicroVerseCore
                 Undo.RecordObject(owner, "Adjust Falloff");
                 f.filterType = filterType;
             }
-
+            
             EditorGUI.indentLevel++;
             if (f.filterType == FalloffFilter.FilterType.Box)
             {
@@ -1119,9 +1157,20 @@ namespace JBooth.MicroVerseCore
                 var channel = (FalloffFilter.TextureChannel)EditorGUILayout.EnumPopup("Channel", f.textureChannel);
                 var amplitude = EditorGUILayout.FloatField("Amplitude", f.textureParams.x);
                 var balance = EditorGUILayout.Slider("Balance", f.textureParams.y, -1, 1);
-                var rotation = EditorGUILayout.Slider("Rotation", f.textureRotationScale.x, -Mathf.PI, Mathf.PI);
-                var scale = EditorGUILayout.FloatField("Scale", f.textureRotationScale.y);
-                var offset = EditorGUILayout.Vector2Field("Offset", new Vector2(f.textureRotationScale.z, f.textureRotationScale.w));
+                var clamp = EditorGUILayout.Toggle("Clamp Texture", f.clampTexture);
+                var rotation = f.textureRotationScale.x;
+                var scale = f.textureRotationScale.y;
+                var offset = new Vector2(f.textureRotationScale.z, f.textureRotationScale.w);
+                if (!clamp)
+                {
+                    rotation = EditorGUILayout.Slider("Rotation", f.textureRotationScale.x, -Mathf.PI, Mathf.PI);
+                    scale = EditorGUILayout.FloatField("Scale", f.textureRotationScale.y);
+                    offset = EditorGUILayout.Vector2Field("Offset", new Vector2(f.textureRotationScale.z, f.textureRotationScale.w));
+                }
+                
+                float x = f.falloffRange.x;
+                float y = f.falloffRange.y;
+                y = EditorGUILayout.Slider(CFilterMinMax, y, 0, 1);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Undo.RecordObject(owner, "Adjust Falloff");
@@ -1129,14 +1178,7 @@ namespace JBooth.MicroVerseCore
                     f.texture = texture;
                     f.textureParams = new Vector2(amplitude, balance);
                     f.textureRotationScale = new Vector4(rotation, scale, offset.x, offset.y);
-                }
-                EditorGUI.BeginChangeCheck();
-                float x = f.falloffRange.x;
-                float y = f.falloffRange.y;
-                y = EditorGUILayout.Slider(CFilterMinMax, y, 0, 1);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    Undo.RecordObject(owner, "Adjust Falloff");
+                    f.clampTexture = clamp;
                     f.falloffRange = new Vector2(x, y);
                 }
             }
@@ -1179,6 +1221,10 @@ namespace JBooth.MicroVerseCore
                 EditorGUILayout.HelpBox("The MicroVerse splines module is not installed. Please install it if you want to create spline based areas", MessageType.Error);
 #endif
             }
+
+            
+
+
             EditorGUI.BeginChangeCheck();
             Easing.BlendShape blend = f.easing.blend;
             if (filterType != FalloffFilter.FilterType.Global)
@@ -1190,6 +1236,14 @@ namespace JBooth.MicroVerseCore
             {
                 Undo.RecordObject(owner, "Adjust Falloff");
                 f.easing.blend = blend;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            var paintArea = (PaintFalloffArea)EditorGUILayout.ObjectField(CFilterPaintArea, f.paintArea, typeof(PaintFalloffArea), true);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(owner, "Adjust Paint Area");
+                f.paintArea = paintArea;
             }
 
             EditorGUI.indentLevel--;
@@ -1306,6 +1360,14 @@ namespace JBooth.MicroVerseCore
                     }
                 }
                 layers = layers.Distinct().ToList();
+                for (int i = 0; i < layers.Count; ++i)
+                {
+                    if (layers[i] == null)
+                    {
+                        layers.RemoveAt(i);
+                        i--;
+                    }
+                }
                 contents = new GUIContent[layers.Count];
                 for (int i = 0; i < layers.Count; ++i)
                 {
@@ -1327,14 +1389,17 @@ namespace JBooth.MicroVerseCore
             public static Bounds bounds;
             public override void OnGUI(Rect rect)
             {
-                GUILayout.Label("Popup Options Example", EditorStyles.boldLabel);
-                int nselect = SelectionGrid(selection, ref scroll, contents, 64, 4);
-                if (nselect != selection)
+                GUILayout.Label("Select Terrain Layer", EditorStyles.boldLabel);
+                if (contents.Length > 0)
                 {
-                    selection = nselect;
-                    currentProperty.objectReferenceValue = layers[selection];
-                    currentProperty.serializedObject.ApplyModifiedProperties();
-                    MicroVerse.instance?.Invalidate(bounds, MicroVerse.InvalidateType.Splats);
+                    int nselect = SelectionGrid(selection, ref scroll, contents, 64, 4);
+                    if (nselect != selection)
+                    {
+                        selection = nselect;
+                        currentProperty.objectReferenceValue = layers[selection];
+                        currentProperty.serializedObject.ApplyModifiedProperties();
+                        MicroVerse.instance?.Invalidate(bounds, MicroVerse.InvalidateType.Splats);
+                    }
                 }
             }
 
@@ -1355,7 +1420,7 @@ namespace JBooth.MicroVerseCore
             {
                 EditorGUILayout.PropertyField(property);
             }
-            if (GUILayout.Button("^", GUILayout.Width(20)))
+            if (GUILayout.Button("Select", GUILayout.Width(60)))
             {
                 PopupTextureLayerSelector.bounds = b;
                 PopupTextureLayerSelector.currentProperty = property;
@@ -1422,5 +1487,57 @@ namespace JBooth.MicroVerseCore
         }
 
         public static Color DropAreaBackgroundColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+
+
+        /// <summary>
+        /// Custom property drawer that allows the selection of the terrain layer via preview
+        /// </summary>
+        [CustomPropertyDrawer(typeof(TextureFilter))]
+        public class TextureFilterPropertyDrawer : PropertyDrawer
+        {
+            public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+            {
+                {
+                    EditorGUI.BeginProperty(position, label, property);
+                    EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
+
+                    var layerRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight, position.width, EditorGUIUtility.singleLineHeight);
+                    float buttonWidth = 60f;
+                    var layerRectField = new Rect(layerRect);
+                    layerRectField.width -= buttonWidth;
+                    var layerRectButton = new Rect(layerRect);
+                    layerRectButton.x = layerRectButton.x + layerRectButton.width - buttonWidth;
+                    layerRectButton.width = buttonWidth;
+
+                    var amountRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight * 2, position.width, EditorGUIUtility.singleLineHeight);
+                    var unitRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight * 3, position.width, EditorGUIUtility.singleLineHeight);
+                    var nameRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight * 4, position.width, EditorGUIUtility.singleLineHeight);
+
+                    // Draw fields - pass GUIContent.none to each so they are drawn without labels
+                    if (GUI.Button(layerRectButton, "Select"))
+                    {
+                        //PopupTextureLayerSelector.bounds = layerRect;
+                        PopupTextureLayerSelector.currentProperty = property.FindPropertyRelative("layer");
+                        PopupWindow.Show(layerRectButton, new PopupTextureLayerSelector());
+
+                    }
+
+                    EditorGUI.indentLevel++;
+                    EditorGUI.PropertyField(layerRectField, property.FindPropertyRelative("layer"), new GUIContent("Layer"));
+                    EditorGUI.PropertyField(amountRect, property.FindPropertyRelative("weight"), new GUIContent("Weight"));
+                    EditorGUI.PropertyField(unitRect, property.FindPropertyRelative("amplitude"), new GUIContent("Amplitude"));
+                    EditorGUI.PropertyField(nameRect, property.FindPropertyRelative("balance"), new GUIContent("Balance"));
+                    EditorGUI.indentLevel--;
+
+                }
+                EditorGUI.EndProperty();
+            }
+
+            public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+            {
+                return EditorGUIUtility.singleLineHeight * 5;
+            }
+        }
+
     }
 }

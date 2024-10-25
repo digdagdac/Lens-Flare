@@ -45,7 +45,7 @@ namespace JBooth.MicroVerseCore
 
         protected KeywordBuilder keywordBuilder = new KeywordBuilder();
 
-        public void StripInBuild()
+        public virtual void StripInBuild()
         {
             if (Application.isPlaying)
                 Destroy(this);
@@ -81,7 +81,22 @@ namespace JBooth.MicroVerseCore
         static Dictionary<string, string> typeToIconPath = new Dictionary<string, string>();
         public void OnDrawGizmos()
         {
-            if (gizmoVisible && MicroVerse.instance != null)
+            if(MicroVerse.instance == null)
+            {
+                return;
+            }
+
+            switch(MicroVerse.instance.options.gizmoVisibility)
+            {
+                case Options.GizmoVisibility.GizmosOff:
+                    gizmoVisible = false;
+                    break;
+                case Options.GizmoVisibility.AlwaysVisible:
+                    gizmoVisible = true;
+                    break;
+            }
+
+            if (gizmoVisible)
             {
                 Vector3 worldPos = this.transform.position;
                 worldPos.y += transform.lossyScale.y;

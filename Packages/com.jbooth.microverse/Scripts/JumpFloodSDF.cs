@@ -19,7 +19,7 @@ namespace JBooth.MicroVerseCore
             RenderTexture output;
             if (r8)
             {
-                output = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.R8);
+                output = RenderTexture.GetTemporary(w, h, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm);
             }
             else
             {

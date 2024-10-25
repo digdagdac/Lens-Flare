@@ -95,7 +95,7 @@ namespace JBooth.MicroVerseCore
                 {
                     return _instance;
                 }
-                _instance = FindObjectOfType<MicroVerse>();
+                _instance = FindFirstObjectByType<MicroVerse>();
                 return _instance;
             }
         }
@@ -142,21 +142,39 @@ namespace JBooth.MicroVerseCore
                 if (valid)
                     return;
             }
-            if (options.settings.terrainSearchMethod == Options.Settings.TerrainSearchMethod.Heriarchy)
+            if (options.settings.terrainSearchMethod == Options.Settings.TerrainSearchMethod.Hierarchy)
             {
                 terrains = GetComponentsInChildren<Terrain>();
             }
             else
             {
-                terrains = Object.FindObjectsByType<Terrain>(FindObjectsSortMode.InstanceID);
+                terrains = FindObjectsByType<Terrain>(FindObjectsSortMode.None);
             }
             if (terrains.Length > 0)
             {
                 // make sure draw instance is on, we're stupidly slow
                 // without it because unity forces CPU readbacks.
-
-                foreach (var t in terrains)
+                for (int i = 0; i < terrains.Length; ++i)
                 {
+                    Terrain t = terrains[i];
+                    if (t == null)
+                    {
+                        Debug.LogError("Terrain is null, removing from MicroVerse update");
+                        var ts = new List<Terrain>(terrains);
+                        ts.RemoveAt(i);
+                        terrains = ts.ToArray();
+                        i--;
+                        continue;
+                    }
+                    if (t.terrainData == null)
+                    {
+                        Debug.LogError("Terrain " + t.name + " does not TerrainData and is not a valid Unity terrain, removing from MicroVerse update");
+                        var ts = new List<Terrain>(terrains);
+                        ts.RemoveAt(i);
+                        terrains = ts.ToArray();
+                        i--;
+                        continue;
+                    }
                     if (t.drawInstanced == false)
                         t.drawInstanced = true;
                 }
@@ -221,8 +239,10 @@ namespace JBooth.MicroVerseCore
         Vector3 raycastOrigin;
 #endif
 
+        
         void Update()
         {
+
             if (Application.isPlaying)
             {
                 if (needUpdate)
@@ -256,39 +276,44 @@ namespace JBooth.MicroVerseCore
                 }
                 roadJobs.Clear();
 #endif
+
+
             }
 
 #if UNITY_EDITOR
-            Profiler.BeginSample("Raycast Gizmo Occlusion");
-            GetComponentsInChildren<Stamp>(raycastStamps);
-            if (raycastStamps.Count > 0)
+            if (UnityEditor.SceneView.lastActiveSceneView != null)
             {
-                raycastResults = new NativeArray<RaycastHit>(raycastStamps.Count, Allocator.TempJob);
-
-                raycastCommands = new NativeArray<RaycastCommand>(raycastStamps.Count, Allocator.TempJob);
-                if (UnityEditor.SceneView.lastActiveSceneView != null)
+                Profiler.BeginSample("Raycast Gizmo Occlusion");
+                GetComponentsInChildren<Stamp>(raycastStamps);
+                if (raycastStamps.Count > 0)
                 {
-                    var sceneCam = UnityEditor.SceneView.lastActiveSceneView.camera;
-                    if (sceneCam != null)
+                    raycastResults = new NativeArray<RaycastHit>(raycastStamps.Count, Allocator.TempJob);
+
+                    raycastCommands = new NativeArray<RaycastCommand>(raycastStamps.Count, Allocator.TempJob);
+                    if (UnityEditor.SceneView.lastActiveSceneView != null)
                     {
-                        raycastOrigin = sceneCam.transform.position;
-                        for (int i = 0; i < raycastStamps.Count; ++i)
+                        var sceneCam = UnityEditor.SceneView.lastActiveSceneView.camera;
+                        if (sceneCam != null)
                         {
-                            var stamp = raycastStamps[i];
-                            Vector3 worldPos = stamp.transform.position;
-                            worldPos.y += stamp.transform.lossyScale.y;
+                            raycastOrigin = sceneCam.transform.position;
+                            for (int i = 0; i < raycastStamps.Count; ++i)
+                            {
+                                var stamp = raycastStamps[i];
+                                Vector3 worldPos = stamp.transform.position;
+                                worldPos.y += stamp.transform.lossyScale.y;
 #if UNITY_2022_2_OR_NEWER
                             raycastCommands[i] = new RaycastCommand(raycastOrigin, (worldPos - raycastOrigin).normalized, QueryParameters.Default);
 #else
-                            raycastCommands[i] = new RaycastCommand(raycastOrigin, (worldPos - raycastOrigin).normalized);
+                                raycastCommands[i] = new RaycastCommand(raycastOrigin, (worldPos - raycastOrigin).normalized);
 #endif
-                        }
+                            }
 
-                        batchRaycast = RaycastCommand.ScheduleBatch(raycastCommands, raycastResults, 1);
+                            batchRaycast = RaycastCommand.ScheduleBatch(raycastCommands, raycastResults, 1);
+                        }
                     }
                 }
+                Profiler.EndSample();
             }
-            Profiler.EndSample();
 
 #endif
         }
@@ -359,8 +384,10 @@ namespace JBooth.MicroVerseCore
                 //Modify(true); // causes issues when entering play mode, since it gets fired them
             }
 #endif
-
         }
+
+
+
 
         private void OnDisable()
         {
@@ -579,7 +606,7 @@ namespace JBooth.MicroVerseCore
 #endif
 
         }
-
+         
         void SeamHeightMaps(DataCache dataCache)
         {
             Profiler.BeginSample("MicroVerse::HeightSeamer");
@@ -640,15 +667,62 @@ namespace JBooth.MicroVerseCore
         }
 
         static ComputeShader heightSeamShader = null;
+        
+        float FindIndex(TerrainLayer[] protos, TerrainLayer layer)
+        {
+            for (int i = 0; i < protos.Length; ++i)
+            {
+                if (protos[i] == layer)
+                { 
+                    return (float)i;
+                }
+            }  
+             
+            return -1;   
+        }
+
+        static int _Mapping = Shader.PropertyToID("_Mapping");
+        float[] indexRemap = new float[32];
+        GraphicsBuffer indexRemapBuffer = null;
+        void MapIndecies(int kernelIndex, Terrain terrain, Terrain neighbor)
+        {
+            var terrainProtos = terrain.terrainData.terrainLayers;
+            var neighborProtos = neighbor.terrainData.terrainLayers;
+            int count = neighborProtos.Length;
+            for (int i = 0; i < count; ++i)
+            {
+                indexRemap[i] = FindIndex(terrainProtos, neighborProtos[i]);
+            }
+            indexRemapBuffer.SetData(indexRemap);
+            alphaSeamShader.SetBuffer(kernelIndex, _Mapping, indexRemapBuffer);
+        }
+
+        static int _TerrainIndex = Shader.PropertyToID("_TerrainIndex");
+        static int _TerrainWeight = Shader.PropertyToID("_TerrainWeight");
+        static int _NeighborIndex = Shader.PropertyToID("_NeighborIndex");
+        static int _NeighborWeight = Shader.PropertyToID("_NeighborWeight");
+        static int _Width = Shader.PropertyToID("_Width");
+        static int _Height = Shader.PropertyToID("_Height");
 
         void SeamAlphaMaps(DataCache dataCache)
-        {
+        { 
             Profiler.BeginSample("MicroVerse::AlphaSeamer");
             // Not a huge fan of this, but there are a lot of resolution dependent
-            // issues that might cause tiny cracks in the terrain, so seam them up
+            // issues that might cause tiny cracks in the terrain, so seam them up.
+            // Note that when using regular unity terrain (Not MicroSplat), we have to deal
+            // with the texture order of each terrain being potentially different, so a simple
+            // copy of indexes/weights between edges is not enough.
+            //
+            // Annoying- wasted several hours because SetFloats on a compute buffer doesn't work,
+            // and you have to use a graphics buffer instead. WTF..
+            
             if (alphaSeamShader == null)
             {
                 alphaSeamShader = (ComputeShader)Resources.Load("MicroVerseAlphaSeamer");
+            }
+            if (indexRemapBuffer == null)
+            {
+                indexRemapBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 32, 4);
             }
             foreach (var terrain in terrains)
             {
@@ -656,54 +730,63 @@ namespace JBooth.MicroVerseCore
                     continue;
                 if (terrain.leftNeighbor != null && terrains.Contains(terrain.leftNeighbor) && dataCache.indexMaps[terrain.leftNeighbor] != null)
                 {
-
+                    
                     int kernelHandle = alphaSeamShader.FindKernel("CSLeft");
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainIndex", dataCache.indexMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainWeight", dataCache.weightMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborIndex", dataCache.indexMaps[terrain.leftNeighbor]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborWeight", dataCache.weightMaps[terrain.leftNeighbor]);
-                    alphaSeamShader.SetInt("_Width", dataCache.indexMaps[terrain].width - 1);
-                    alphaSeamShader.SetInt("_Height", dataCache.indexMaps[terrain].height - 1);
+                    MapIndecies(kernelHandle, terrain, terrain.leftNeighbor);
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainIndex, dataCache.indexMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainWeight, dataCache.weightMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborIndex, dataCache.indexMaps[terrain.leftNeighbor]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborWeight, dataCache.weightMaps[terrain.leftNeighbor]);
+                    alphaSeamShader.SetInt(_Width, dataCache.indexMaps[terrain].width - 1);
+                    alphaSeamShader.SetInt(_Height, dataCache.indexMaps[terrain].height - 1);
 
                     alphaSeamShader.Dispatch(kernelHandle, Mathf.CeilToInt(dataCache.indexMaps[terrain].height / 512.0f), 1, 1);
                 }
                 if (terrain.rightNeighbor != null && terrains.Contains(terrain.rightNeighbor) && dataCache.indexMaps[terrain.rightNeighbor] != null)
                 {
                     int kernelHandle = alphaSeamShader.FindKernel("CSRight");
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainIndex", dataCache.indexMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainWeight", dataCache.weightMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborIndex", dataCache.indexMaps[terrain.rightNeighbor]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborWeight", dataCache.weightMaps[terrain.rightNeighbor]);
-                    alphaSeamShader.SetInt("_Width", dataCache.indexMaps[terrain].width - 1);
-                    alphaSeamShader.SetInt("_Height", dataCache.indexMaps[terrain].height - 1);
+                    MapIndecies(kernelHandle, terrain, terrain.rightNeighbor);
+                    
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainIndex, dataCache.indexMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainWeight, dataCache.weightMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborIndex, dataCache.indexMaps[terrain.rightNeighbor]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborWeight, dataCache.weightMaps[terrain.rightNeighbor]);
+                    alphaSeamShader.SetInt(_Width, dataCache.indexMaps[terrain].width - 1);
+                    alphaSeamShader.SetInt(_Height, dataCache.indexMaps[terrain].height - 1);
 
                     alphaSeamShader.Dispatch(kernelHandle, Mathf.CeilToInt(dataCache.indexMaps[terrain].height / 512.0f), 1, 1);
                 }
                 if (terrain.topNeighbor != null && terrains.Contains(terrain.topNeighbor) && dataCache.indexMaps[terrain.topNeighbor] != null)
                 {
                     int kernelHandle = alphaSeamShader.FindKernel("CSUp");
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainIndex", dataCache.indexMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainWeight", dataCache.weightMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborIndex", dataCache.indexMaps[terrain.topNeighbor]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborWeight", dataCache.weightMaps[terrain.topNeighbor]);
-                    alphaSeamShader.SetInt("_Width", dataCache.indexMaps[terrain].width - 1);
-                    alphaSeamShader.SetInt("_Height", dataCache.indexMaps[terrain].height - 1);
+                    MapIndecies(kernelHandle, terrain, terrain.topNeighbor);
+                    
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainIndex, dataCache.indexMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainWeight, dataCache.weightMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborIndex, dataCache.indexMaps[terrain.topNeighbor]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborWeight, dataCache.weightMaps[terrain.topNeighbor]);
+                    alphaSeamShader.SetInt(_Width, dataCache.indexMaps[terrain].width - 1);
+                    alphaSeamShader.SetInt(_Height, dataCache.indexMaps[terrain].height - 1);
 
                     alphaSeamShader.Dispatch(kernelHandle, Mathf.CeilToInt(dataCache.indexMaps[terrain].height / 512.0f), 1, 1);
                 }
                 if (terrain.bottomNeighbor != null && terrains.Contains(terrain.bottomNeighbor) && dataCache.indexMaps[terrain.bottomNeighbor] != null)
                 {
                     int kernelHandle = alphaSeamShader.FindKernel("CSDown");
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainIndex", dataCache.indexMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_TerrainWeight", dataCache.weightMaps[terrain]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborIndex", dataCache.indexMaps[terrain.bottomNeighbor]);
-                    alphaSeamShader.SetTexture(kernelHandle, "_NeighborWeight", dataCache.weightMaps[terrain.bottomNeighbor]);
-                    alphaSeamShader.SetInt("_Width", dataCache.indexMaps[terrain].width - 1);
-                    alphaSeamShader.SetInt("_Height", dataCache.indexMaps[terrain].height - 1);
+                    MapIndecies(kernelHandle, terrain, terrain.bottomNeighbor);
+                    
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainIndex, dataCache.indexMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _TerrainWeight, dataCache.weightMaps[terrain]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborIndex, dataCache.indexMaps[terrain.bottomNeighbor]);
+                    alphaSeamShader.SetTexture(kernelHandle, _NeighborWeight, dataCache.weightMaps[terrain.bottomNeighbor]);
+                    alphaSeamShader.SetInt(_Width, dataCache.indexMaps[terrain].width - 1);
+                    alphaSeamShader.SetInt(_Height, dataCache.indexMaps[terrain].height - 1);
 
                     alphaSeamShader.Dispatch(kernelHandle, Mathf.CeilToInt(dataCache.indexMaps[terrain].height / 512.0f), 1, 1);
                 }
             }
+            indexRemapBuffer.Release();
+            indexRemapBuffer = null;
             Profiler.EndSample();
         }
 
@@ -823,10 +906,16 @@ namespace JBooth.MicroVerseCore
             }
 #endif
         }
-
-
+        
+        List<IModifier> allModifiers = new List<IModifier>(256);
+        List<IHeightModifier> heightmapModifiers = new List<IHeightModifier>(64);
+        List<ITextureModifier> splatmapModifiers = new List<ITextureModifier>(64);
+        List<IHoleModifier> holeModifiers = new List<IHoleModifier>(16);
+        DataCache dataCache = null;
+        List<Terrain> modifiedTerrains = new List<Terrain>();
 
         public static bool noAsyncReadback { get; private set; }
+
         /// <summary>
         /// This is the actual function that does updates to the terrain.
         /// If you call it directly it will update all the height/splat maps
@@ -837,16 +926,17 @@ namespace JBooth.MicroVerseCore
         /// which will make it complete immediately but be really slow
         /// </summary>
         /// <param name="writeToCPU"></param>
-        ///
-        List<IModifier> allModifiers = new List<IModifier>(256);
-        List<IHeightModifier> heightmapModifiers = new List<IHeightModifier>(64);
-        List<ITextureModifier> splatmapModifiers = new List<ITextureModifier>(64);
-        List<IHoleModifier> holeModifiers = new List<IHoleModifier>(16);
-        DataCache dataCache = null;
-        List<Terrain> modifiedTerrains = new List<Terrain>();
         public void Modify(bool writeToCPU = false, bool noAsync = false, bool boundsCull = false)
         {
             noAsyncReadback = noAsync;
+
+            // After a domain reload the MicroVerse object in native c++ might be destroyed (and then reloaded)
+            // == null check on a Unity Object also checks for the underlying object
+            if(this == null)
+            {
+                return;
+            }
+
             if (!enabled)
             {
                 return;
@@ -1125,8 +1215,8 @@ namespace JBooth.MicroVerseCore
 
                     var format = Terrain.holesRenderTextureFormat;
                     var res = terrain.terrainData.holesResolution;
-                    RenderTexture holeA = RenderTexture.GetTemporary(res, res, 0, format);
-                    RenderTexture holeB = RenderTexture.GetTemporary(res, res, 0, format);
+                    RenderTexture holeA = RenderTexture.GetTemporary(res, res, 0, format, RenderTextureReadWrite.Linear);
+                    RenderTexture holeB = RenderTexture.GetTemporary(res, res, 0, format, RenderTextureReadWrite.Linear);
                     RenderTexture.active = holeA;
                     GL.Clear(false, true, Color.white);
                     foreach (var hm in holeModifiers)
@@ -1250,9 +1340,21 @@ namespace JBooth.MicroVerseCore
                     //
                     needHoleSync = !writeToCPU;
 
-                    RenderTexture.active = null;
-                    RenderTexture.ReleaseTemporary(holeMap);
                     Profiler.EndSample();
+
+#if UNITY_EDITOR && __MICROSPLAT__ && __MICROSPLAT_TESSELLATION__
+                    if (IsUsingProxyRenderer)
+                    {
+                        UpdateHolemap(terrain, holeMap);
+                    }
+                    else
+                    {
+                        RenderTexture.active = null;
+                        RenderTexture.ReleaseTemporary(holeMap);
+                    }
+#else
+                    RenderTexture.ReleaseTemporary(holeMap);
+#endif
                 }
                 Profiler.BeginSample("Modify::Raster Splats");
                 var indexMap = dataCache.indexMaps[terrain];

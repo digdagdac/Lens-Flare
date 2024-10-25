@@ -139,6 +139,24 @@ namespace JBooth.MicroVerseCore.Browser
 
         private Grouping grouping = Grouping.Package;
 
+        /// <summary>
+        /// Get all presets that are currently visible in the browser
+        /// </summary>
+        /// <returns></returns>
+        public List<PresetItem> GetPresets()
+        {
+            if (selectedPackage == null)
+                return new();
+
+            List<PresetItem> presets = filteredPresets.Where(x => x.collection.packName == selectedPackage.packName).ToList();
+
+            return presets;
+        }
+
+        public Package GetSelectedPackage()
+        {
+            return selectedPackage;
+        }
         public Tab GetSelectedTab()
         {
             return tab;

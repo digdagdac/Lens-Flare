@@ -9,10 +9,10 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: stump_BakedWind_25m
   m_Shader: {fileID: -6465566751694194690, guid: 9a708780807cb43d7b90c5533fc6308a, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _VERTEXWIND
   m_InvalidKeywords:
+  - _ALPHA_NONE
   - _ANIM_HIERARCHY_PIVOT
   - _DISPLACEMENT_LOCK_TILING_SCALE
   - _HEIGHTMAP
@@ -33,7 +33,6 @@ Material:
   - TransparentDepthPostpass
   - TransparentBackface
   - MOTIONVECTORS
-  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -315,6 +314,7 @@ Material:
     - _AORemapMin: 0
     - _ATDistance: 1
     - _AlbedoAffectEmissive: 0
+    - _Alpha: 0
     - _AlphaCut: 0
     - _AlphaCutoff: 0.5
     - _AlphaCutoffEnable: 0
@@ -328,6 +328,7 @@ Material:
     - _BillboardMode: 0
     - _BillboardShadowMode: 0
     - _BlendMode: 0
+    - _BrushLighting: 0
     - _BumpScale: 1
     - _CoatCoverage: 1
     - _CoatIOR: 0.5
@@ -369,7 +370,7 @@ Material:
     - _DoubleSidedEnable: 0
     - _DoubleSidedMirrorEnable: 1
     - _DoubleSidedNormalMode: 1
-    - _Drag: 1
+    - _Drag: 0.02
     - _DstBlend: 0
     - _EmissionStrength: 1
     - _EmissiveColorMode: 1
@@ -400,7 +401,7 @@ Material:
     - _HeightTessCenter: 0.5
     - _HorizonFade: 1
     - _IOR: 1
-    - _InitialBend: 1
+    - _InitialBend: 0
     - _InvTilingScale: 1
     - _Ior: 1
     - _IridescenceMask: 1
@@ -429,7 +430,7 @@ Material:
     - _SSRefractionProjectionModel: 0
     - _SSSAndTransmissionType: 0
     - _ShiverDirectionality: 0.5
-    - _ShiverDrag: 0.2
+    - _ShiverDrag: 0
     - _Smoothness: 0.416
     - _SmoothnessRemapMax: 0.51449203
     - _SmoothnessRemapMin: 0
@@ -490,6 +491,7 @@ Material:
     - _UseTransmission: 1
     - _UseTreeOcclusion: 0
     - _UseWind: 0
+    - _VertexWind: 1
     - _WindElasticityLvl0: 0.34
     - _WindElasticityLvl1: 0.15
     - _WindElasticityLvlB: 0.131
@@ -502,6 +504,7 @@ Material:
     - _WindHeightScale: 2
     - _WindHeightSpeed: 1
     - _WindInnerRadius: 0.5
+    - _WindNormalInfluence: 0
     - _WindRadiusIntensity: 0.1
     - _WindRadiusSpeed: 1
     - _WindRangeLvl0: 1.75
@@ -518,8 +521,10 @@ Material:
     - _BaseColor: {r: 0.9411765, g: 0.9411765, b: 0.9411765, a: 1}
     - _BaseColorRandomize: {r: 0, g: 0, b: 0, a: 0.05}
     - _Color: {r: 0.9411765, g: 0.9411765, b: 0.9411765, a: 1}
+    - _DitherFade: {r: 50, g: 50, b: 0, a: 0}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionTint: {r: 1, g: 1, b: 1, a: 1}
     - _EmissiveColor: {r: 0, g: 0, b: 0, a: 1}
     - _ImposterOffset: {r: 0.5, g: 0, b: 0, a: 0}
     - _InvPrimScale: {r: 1, g: 1, b: 0, a: 0}

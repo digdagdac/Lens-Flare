@@ -37,14 +37,15 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Conifer_Billboard
   m_Shader: {fileID: -6465566751694194690, guid: 9a708780807cb43d7b90c5533fc6308a, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _ALPHACUT
+  - _ALPHA_CUT
+  - _BRUSHLIGHTING
+  - _VERTEXWIND
   m_InvalidKeywords:
   - BACKFACE_NORMAL_MODE_MIRROR
   - EFFECT_BUMP
   - EFFECT_HUE_VARIATION
+  - _ALPHACUT
   - _WINDQUALITY_NONE
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
@@ -59,7 +60,6 @@ Material:
   - RayTracingPrepass
   - ForwardEmissiveForDeferred
   - MOTIONVECTORS
-  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -126,19 +126,21 @@ Material:
     - EFFECT_BILLBOARD: 1
     - EFFECT_EXTRA_TEX: 0
     - _AddPrecomputedVelocity: 0
+    - _Alpha: 1
     - _AlphaClip: 1
     - _AlphaClipThreshold: 0.1
     - _AlphaCut: 1
     - _AlphaCutoffEnable: 1
     - _AlphaDstBlend: 0
     - _AlphaSrcBlend: 1
-    - _AlphaThreshold: 0.3
+    - _AlphaThreshold: 0.5
     - _AlphaToMask: 0
     - _AlphaToMaskInspectorValue: 0
     - _BillboardKwToggle: 0
     - _BillboardShadowFade: 0.5
     - _Blend: 0
     - _BlendMode: 0
+    - _BrushLighting: 1
     - _CanopyBaseHeight: 8
     - _Canopy_Base_Height: 0
     - _CastShadows: 1
@@ -151,9 +153,11 @@ Material:
     - _DetailAlbedoStrength: 1
     - _DetailNormalStrength: 1
     - _DetailSmoothnessStrength: 1
+    - _DitherFadeKeyword: 0
     - _DoubleSidedEnable: 0
     - _DoubleSidedGIMode: 0
     - _DoubleSidedNormalMode: 0
+    - _Drag: 0.02
     - _DstBlend: 0
     - _EmissionStrength: 1
     - _EnableBlendModePreserveSpecularLighting: 1
@@ -161,6 +165,7 @@ Material:
     - _ForceForwardEmissive: 0
     - _Glossiness: 0
     - _HueVariationKwToggle: 1
+    - _InitialBend: 0
     - _Metallic: 0
     - _Mip_Bias: 1
     - _NormalMapKwToggle: 1
@@ -177,6 +182,7 @@ Material:
     - _RenderQueueType: 1
     - _RequireSplitLighting: 0
     - _Shininess: 0.078125
+    - _ShiverDrag: 0
     - _SphereAOCenter: 18
     - _SphereAODarken: 0
     - _SphereAORadius: 12
@@ -193,6 +199,7 @@ Material:
     - _StencilWriteMaskDistortionVec: 4
     - _StencilWriteMaskGBuffer: 14
     - _StencilWriteMaskMV: 40
+    - _Stiffness: 1
     - _SubsurfaceIndirect: 0
     - _SubsurfaceKwToggle: 0
     - _SubsurfaceScale: 0.0001
@@ -211,7 +218,9 @@ Material:
     - _UseEmission: 0
     - _UseMaskMap: 0
     - _UseShadowThreshold: 0
+    - _VertexWind: 1
     - _WINDQUALITY: 1
+    - _WindNormalInfluence: 0
     - _WindQuality: 0
     - _WorkflowMode: 1
     - _ZTest: 4
@@ -224,8 +233,10 @@ Material:
     - Diffusion_Profile_Asset: {r: 2.2888926e+38, g: 1.2389358e-26, b: 7.69327e-37, a: 0.00018220427}
     - _AO_Remap: {r: 0, g: 0.3, b: 0, a: 0}
     - _Color: {r: 0.7700869, g: 0.8396226, b: 0.6376379, a: 1}
+    - _DitherFade: {r: 50, g: 50, b: 0, a: 0}
     - _DoubleSidedConstants: {r: -1, g: -1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionTint: {r: 1, g: 1, b: 1, a: 1}
     - _HueVariation: {r: 1, g: 0.5, b: 0, a: 0.1}
     - _HueVariationColor: {r: 0.2792039, g: 0.3018868, b: 0.2264151, a: 0.7607843}
     - _Smoothness_Remap: {r: 0, g: 1, b: 0, a: 0}

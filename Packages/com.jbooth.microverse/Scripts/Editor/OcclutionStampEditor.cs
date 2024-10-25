@@ -17,7 +17,7 @@ namespace JBooth.MicroVerseCore
 
             if (stamp.GetComponentInParent<MicroVerse>() == null)
             {
-                EditorGUILayout.HelpBox("Stamp is not under MicroVerse in the heriarchy, will have no effect", MessageType.Warning);
+                EditorGUILayout.HelpBox("Stamp is not under MicroVerse in the hierarchy, will have no effect", MessageType.Warning);
             }
             using var changeScope = new EditorGUI.ChangeCheckScope();
 

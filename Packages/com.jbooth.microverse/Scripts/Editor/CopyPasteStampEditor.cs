@@ -221,7 +221,7 @@ namespace JBooth.MicroVerseCore
                         }
                         else
                         {
-                            old = RenderTexture.GetTemporary(pixelsX, pixelsY, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+                            old = RenderTexture.GetTemporary(pixelsX, pixelsY, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm);
                             bufferMap[dps] = old;
                             old.name = "CopyPasteStampEditor::DetailRT";
                             old.wrapMode = TextureWrapMode.Clamp;
@@ -319,7 +319,7 @@ namespace JBooth.MicroVerseCore
                         copyMat.SetTexture("_CurrentBuffer", heightTemp);
                         copyMat.SetTexture("_Source", heightSource);
                         copyMat.EnableKeyword("_COPYHEIGHT");
-                        copyMat.SetFloat("_YOffset", cpStamp.transform.position.y / realSize);
+                        copyMat.SetFloat("_YOffset", (cpStamp.transform.position.y - terrain.GetPosition().y) / realSize);
                         Graphics.Blit(heightSource, heightBuffer, copyMat);
                         RenderTexture.active = null;
                         RenderTexture.ReleaseTemporary(heightTemp);
@@ -350,7 +350,7 @@ namespace JBooth.MicroVerseCore
 
                         if (holeBuffer == null)
                         {
-                            holeBuffer = RenderTexture.GetTemporary(holePixelsX, holePixelsY, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+                            holeBuffer = RenderTexture.GetTemporary(holePixelsX, holePixelsY, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm);
                             holeBuffer.name = "CopyPasteStampEditor::holeBuffer";
                             holeBuffer.wrapMode = TextureWrapMode.Clamp;
                             holeBuffer.filterMode = FilterMode.Point;
@@ -509,18 +509,46 @@ namespace JBooth.MicroVerseCore
             {
                 dcd = CaptureDetails(terrains, cpStamp.GetBounds(), cpStamp.transform);
             }
-            
-            var cp = CopyStamp.Create(heightTex, indexTex, weightTex, holeTex, terrainLayers, renorm, tcd, dcd);
-            if (System.IO.File.Exists(path))
+            if (cpStamp.stamp == null)
             {
-                System.IO.File.Delete(path);
-            }
-            if (!path.EndsWith(".asset"))
-                path += ".asset";
-            path = path.Replace("..", ".");
+                var cp = CopyStamp.Create(heightTex, indexTex, weightTex, holeTex, terrainLayers, renorm, tcd,
+                    dcd);
+                if (System.IO.File.Exists(path))
+                {
+                    System.IO.File.Delete(path);
+                }
 
-            AssetDatabase.CreateAsset(cp, AssetDatabase.GenerateUniqueAssetPath(path));
-            cpStamp.stamp = AssetDatabase.LoadAssetAtPath<CopyStamp>(path);
+                if (!path.EndsWith(".asset"))
+                    path += ".asset";
+                path = path.Replace("..", ".");
+
+                AssetDatabase.CreateAsset(cp, AssetDatabase.GenerateUniqueAssetPath(path));
+                cpStamp.stamp = AssetDatabase.LoadAssetAtPath<CopyStamp>(path);
+            }
+            else
+            {
+                Undo.RecordObject(cpStamp.stamp, "Update CopyStamp Data");
+                
+                cpStamp.stamp.layers = terrainLayers;
+                cpStamp.stamp.heightRenorm = renorm;
+                cpStamp.stamp.heightData = heightTex != null ? heightTex.GetRawTextureData() : null;
+                cpStamp.stamp.indexData = indexTex != null ? indexTex.GetRawTextureData() : null;
+                cpStamp.stamp.weightData = weightTex != null ? weightTex.GetRawTextureData() : null;
+                cpStamp.stamp.holeData = holeTex != null ? holeTex.GetRawTextureData() : null;
+                if (heightTex != null) cpStamp.stamp.heightSize = new Vector2Int(heightTex.width, heightTex.height);
+                if (indexTex != null && weightTex != null) cpStamp.stamp.indexWeightSize = new Vector2Int(indexTex.width, indexTex.height);
+                if (holeTex != null) cpStamp.stamp.holeSize = new Vector2Int(holeTex.width, holeTex.height);
+                cpStamp.stamp.treeData = tcd;
+                cpStamp.stamp.detailData = dcd;
+
+                // Wipe the unpacked values so that Unpack can do its work
+                cpStamp.stamp.heightMap = null;
+                cpStamp.stamp.indexMap = null;
+                cpStamp.stamp.weightMap = null;
+                cpStamp.stamp.holeMap = null;
+
+                EditorUtility.SetDirty(cpStamp.stamp);
+            }
         }
 
 
@@ -535,7 +563,7 @@ namespace JBooth.MicroVerseCore
 
             if (cpStamp.GetComponentInParent<MicroVerse>() == null)
             {
-                EditorGUILayout.HelpBox("Stamp is not under MicroVerse in the heriarchy, will have no effect", MessageType.Warning);
+                EditorGUILayout.HelpBox("Stamp is not under MicroVerse in the hierarchy, will have no effect", MessageType.Warning);
             }
             
             EditorGUILayout.PropertyField(serializedObject.FindProperty("copyHeights"));
@@ -677,6 +705,29 @@ namespace JBooth.MicroVerseCore
             }
         }
 
+        class CachedTransform
+        {
+            public Vector3 pos;
+            public Quaternion quat;
+            public Vector3 scale;
+
+            public void Capture(Transform t)
+            {
+                pos = t.position;
+                quat = t.rotation;
+                scale = t.lossyScale;
+            }
+
+            public bool Compare(Transform t)
+            {
+                if (t.position != pos) return false;
+                if (t.rotation != quat) return false;
+                if (t.localScale != t.lossyScale) return false;
+                return true;
+            }
+        }
+
+        Dictionary<CopyPasteStamp, CachedTransform> cachedTransforms = new Dictionary<CopyPasteStamp, CachedTransform>();
         private void OnUpdate()
         {
             foreach (var target in targets)
@@ -687,14 +738,21 @@ namespace JBooth.MicroVerseCore
                 var stamp = (CopyPasteStamp)target;
                 if (stamp.stamp == null)
                     continue;
-                if (stamp.transform.hasChanged)
+                if (!cachedTransforms.ContainsKey(stamp))
                 {
+                    CachedTransform t = new CachedTransform();
+                    t.Capture(stamp.transform);
+                    cachedTransforms[stamp] = t;
+                }
+                var ct = cachedTransforms[stamp];
+                if (!ct.Compare(stamp.transform))
+                {
+                    ct.Capture(stamp.transform);
                     var r = stamp.transform.localRotation.eulerAngles;
                     r.x = 0;
                     r.z = 0;
                     stamp.transform.localRotation = Quaternion.Euler(r);
                     stamp.GetComponentInParent<MicroVerse>()?.Invalidate(stamp.GetBounds());
-                    stamp.transform.hasChanged = false;
                 }
             }
         }

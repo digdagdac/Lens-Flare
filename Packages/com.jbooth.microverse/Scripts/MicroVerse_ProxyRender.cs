@@ -71,6 +71,7 @@ namespace JBooth.MicroVerseCore
             public RenderTexture heightMap;
             public RenderTexture normalMap;
             public RenderTexture[] controlMaps = new RenderTexture[8];
+            public RenderTexture holeMap;
 
             public void Cleanup()
             {
@@ -85,7 +86,8 @@ namespace JBooth.MicroVerseCore
                 if (root != null) GameObject.DestroyImmediate(root);
                 if (heightMap != null) RenderTexture.ReleaseTemporary(heightMap);
                 if (normalMap != null) RenderTexture.ReleaseTemporary(normalMap);
-                
+                if (holeMap != null) RenderTexture.ReleaseTemporary(holeMap);
+
                 for (int i = 0; i < controlMaps.Length; ++i)
                 {
                     if (controlMaps[i] != null) RenderTexture.ReleaseTemporary(controlMaps[i]);
@@ -94,6 +96,7 @@ namespace JBooth.MicroVerseCore
                 heightMap = null;
                 normalMap = null;
                 instance = null;
+                holeMap = null;
                 root = null;
                 filter = null;
                 renderer = null;
@@ -172,8 +175,6 @@ namespace JBooth.MicroVerseCore
             //half4 _TessData2; // distance min, max, shaping, upbias
             pd.instance.SetVector("_TessData1", new Vector4(12, t.terrainData.size.y, 0, 20));
             pd.instance.SetVector("_TessData2", new Vector4(800, 3000, 0, 1));
-
-
         }
 
         void UpdateProxyNormalmap(Terrain t, RenderTexture normalMap)
@@ -181,7 +182,7 @@ namespace JBooth.MicroVerseCore
             var pd = FindOrCreateProxyData(t);
             if (pd == null)
                 return;
-            if (pd.heightMap != null) RenderTexture.ReleaseTemporary(pd.normalMap);
+            if (pd.normalMap != null) RenderTexture.ReleaseTemporary(pd.normalMap);
             pd.normalMap = normalMap;
             pd.instance.SetTexture("_TerrainNormalmapTexture", normalMap);
         }
@@ -193,6 +194,16 @@ namespace JBooth.MicroVerseCore
             if (pd.controlMaps[index] != null) RenderTexture.ReleaseTemporary(pd.controlMaps[index]);
             pd.controlMaps[index] = control;
             pd.instance.SetTexture("_Control" + index, control);
+        }
+
+        void UpdateHolemap(Terrain t, RenderTexture holeMap)
+        {
+            var pd = FindOrCreateProxyData(t);
+            if (pd == null)
+                return;
+            if (pd.holeMap != null) RenderTexture.ReleaseTemporary(pd.holeMap);
+            pd.normalMap = holeMap;
+            pd.instance.SetTexture("_TerrainHolesTexture", holeMap);
         }
 
         void EnableProxyRenderer()

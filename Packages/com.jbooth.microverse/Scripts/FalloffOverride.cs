@@ -7,10 +7,5 @@ namespace JBooth.MicroVerseCore
     public class FalloffOverride : MonoBehaviour
     {
         public FalloffFilter filter;
-
-        public void OnEnable()
-        {
-            
-        }
     }
 }

@@ -102,6 +102,8 @@ namespace JBooth.MicroVerseCore
                 //EditorGUILayout.PropertyField(serializedObject.FindProperty("treatAsSplineArea"));
             }
             EditorGUILayout.PropertyField(serializedObject.FindProperty("sdfRes"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("searchQuality"));
+            
             using (new GUILayout.VerticalScope(GUIUtil.boxStyle))
             {
                 GUIUtil.DrawNoise(sp, sp.positionNoise, "Position Noise", FilterSet.NoiseOp.Add, false, false);
@@ -115,9 +117,25 @@ namespace JBooth.MicroVerseCore
                 if (hprop.boolValue)
                 {
                     EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(serializedObject.FindProperty("heightBlendMode"));
+
+                    if (serializedObject.FindProperty("heightBlendMode").enumValueIndex == 3)
+                    {
+                        EditorGUILayout.PropertyField(serializedObject.FindProperty("blend"));
+                    }
                     EditorGUILayout.PropertyField(serializedObject.FindProperty("width"));
                     EditorGUILayout.PropertyField(serializedObject.FindProperty("smoothness"));
                     EditorGUILayout.PropertyField(serializedObject.FindProperty("trench"));
+                    EditorGUILayout.PropertyField(serializedObject.FindProperty("useTrenchCurve"));
+                    if (serializedObject.FindProperty("useTrenchCurve").boolValue)
+                    {
+                        EditorGUI.BeginChangeCheck();
+                        EditorGUILayout.CurveField(serializedObject.FindProperty("trenchCurve"), Color.blue, new Rect(0, 1, -10, 10));
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            sp.ClearCachedSplineTrenchCurve();
+                        }
+                    }
                     GUIUtil.DrawNoise(sp, sp.heightNoise, "Height Noise");
                     EditorGUILayout.Space();
                     using (new GUILayout.VerticalScope(GUIUtil.boxStyle))
@@ -154,8 +172,17 @@ namespace JBooth.MicroVerseCore
                     }
                     EditorGUI.indentLevel--;
                 }
+                else if (serializedObject.FindProperty("layer").objectReferenceValue != null)
+                {
+                    EditorGUILayout.HelpBox("Layer still has a value and will be applied to terrain", MessageType.Warning);
+                    GUIUtil.DrawTextureLayerSelector(serializedObject.FindProperty("layer"), sp.GetBounds());
+                }
+                else if (serializedObject.FindProperty("embankmentLayer").objectReferenceValue != null)
+                {
+                    EditorGUILayout.HelpBox("Layer still has a value and will be applied to terrain", MessageType.Warning);
+                    GUIUtil.DrawTextureLayerSelector(serializedObject.FindProperty("embankmentLayer"), sp.GetBounds());
+                }
 
-                
             }
             using (new GUILayout.VerticalScope(GUIUtil.boxStyle))
             {

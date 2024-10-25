@@ -92,13 +92,13 @@
                 splat = max(curMask.y, splat);
                 tree = max(curMask.z, tree);
                 detail = max(curMask.w, detail);
-                if (_HeightWidth > 0)
+                if (_HeightWidth >= 0)
                     curMask.x = height;
-                if (_SplatWidth > 0)
+                if (_SplatWidth >= 0)
                     curMask.y = splat;
-                if (_TreeWidth > 0)
+                if (_TreeWidth >= 0)
                     curMask.z = tree;
-                if (_DetailWidth > 0)
+                if (_DetailWidth >= 0)
                     curMask.w = detail;
                 return curMask; 
 

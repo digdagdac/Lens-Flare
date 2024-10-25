@@ -17,12 +17,14 @@
             #pragma shader_feature_local _ _FALLOFFSMOOTHSTEP _FALLOFFEASEIN _FALLOFFEASEOUT _FALLOFFEASEINOUT
             #pragma shader_feature_local _ _FALLOFFNOISE _FALLOFFFBM _FALLOFFWORLEY _FALLOFFWORM _FALLOFFWORMFBM _FALLOFFNOISETEXTURE
             #pragma shader_feature_local _ _HEIGHTNOISE _HEIGHTFBM _HEIGHTWORLEY _HEIGHTWORM _HEIGHTWORMFBM _HEIGHTNOISETEXTURE
-
+            #pragma shader_feature_local _ _SPLINECURVETRENCHWEIGHT
             #pragma shader_feature_local _ _TREATASAREA
 
+            #define kMaxHeight          (32766.0f/65535.0f) 
 
             #include "UnityCG.cginc"
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/HeightStampFiltering.cginc" 
 
             struct vertexInput
             {
@@ -40,6 +42,7 @@
 
             sampler2D _MainTex;
             sampler2D _SplineSDF;
+            sampler2D _TrenchCurve;
             float4 _SplineSDF_TexelSize;
 
             float _Width;
@@ -48,10 +51,6 @@
             float _RealHeight;
             float3 _NoiseUV;
             float _TerrainHeight;
-            sampler2D _FalloffNoiseTexture;
-            float4 _FalloffNoiseTexture_ST;
-            float4 _FalloffNoise;
-            int _FalloffNoiseChannel;
             float _HeightMapSize;
 
             sampler2D _HeightNoiseTexture;
@@ -59,6 +58,7 @@
             float4 _HeightNoise;
             int _HeightNoiseChannel;
 
+            float _Blend; 
             v2f vert(vertexInput v)
             {
                 v2f o;
@@ -154,14 +154,23 @@
                     data.b -= (fnoise * nstr);
                 #endif
                 data.b -= _TerrainHeight;
+
+                float trench = _Trench;
+                #if _SPLINECURVETRENCHWEIGHT
+                    trench = tex2D(_TrenchCurve, float2(data.g/(_Width+_Smoothness), 0.5)).r;
+                #endif
+
+
 #if _TREATASAREA
-                data.b -= _Trench;
+                data.b -= trench;
 #else
-                data.b = lerp(data.b, data.b-(_Trench), 1.0 - saturate(smoothstep(_Width, _Width+_Smoothness, data.g)));
+                data.b = lerp(data.b, data.b-(trench), 1.0 - saturate(smoothstep(_Width, _Width+_Smoothness, data.g)));
 #endif
                 float newHeight = saturate(lerp(height, data.b/_RealHeight, falloff));
 
-                return PackHeightmap(newHeight);
+                float blend = CombineHeight(height, newHeight, _CombineMode); 
+
+                return PackHeightmap(clamp(lerp(height, blend, falloff), 0, kMaxHeight)); 
             }
             ENDCG
         }

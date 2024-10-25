@@ -54,7 +54,8 @@ namespace JBooth.MicroVerseCore
             var scale = stamp.transform.localScale;
             scale.x = FindClosestDivisible(scale.x, t.terrainData.size.x / textureSize);
             scale.z = FindClosestDivisible(scale.z, t.terrainData.size.z / textureSize);
-            stamp.transform.localScale = scale;
+            if (stamp.transform.localScale != scale)
+                stamp.transform.localScale = scale;
         }
 
         [SerializeField] int version = 0;
@@ -147,7 +148,8 @@ namespace JBooth.MicroVerseCore
                 stamp.heightMap.filterMode = pixelQuantization ? FilterMode.Point : FilterMode.Bilinear;
                 stamp.heightMap.wrapMode = TextureWrapMode.Clamp;
                 var ret = heightStamp.ApplyHeightStampAbsolute(source, dest, heightmapData, od, stamp.heightRenorm);
-                this.transform.localScale = origScale;
+                if (origScale != this.transform.localScale)
+                    this.transform.localScale = origScale;
                 return ret;
             }
             return false;
@@ -352,7 +354,7 @@ namespace JBooth.MicroVerseCore
                     mat.SetMatrix("_Transform", TerrainUtil.ComputeStampMatrix(dd.terrain, transform)); ;
                     
                     RenderTexture rt = RenderTexture.GetTemporary(dd.terrain.terrainData.detailWidth, dd.terrain.terrainData.detailHeight, 0,
-                    RenderTextureFormat.R8);
+                    UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm);
                     rt.name = "DetailStamp::rt";
                     
 
@@ -453,6 +455,10 @@ namespace JBooth.MicroVerseCore
                 return heightStamp.falloff.splineArea.GetBounds();
             }
 #endif
+            if (heightStamp != null && heightStamp.falloff.paintArea != null && heightStamp.falloff.paintArea.clampOutsideOfBounds)
+            {
+                return heightStamp.falloff.paintArea.GetBounds();
+            }
             return TerrainUtil.GetBounds(transform);
         }
 

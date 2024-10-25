@@ -35,6 +35,8 @@
             #pragma shader_feature_local_fragment _ _FALLOFFSMOOTHSTEP _FALLOFFEASEIN _FALLOFFEASEOUT _FALLOFFEASEINOUT
             #pragma shader_feature_local_fragment _ _FALLOFFNOISE _FALLOFFFBM _FALLOFFWORLEY _FALLOFFWORM _FALLOFFWORMFBM _FALLOFFNOISETEXTURE
 
+            #pragma shader_feature_local_fragment _ _USEFALLOFFPAINTAREA
+
 // for some reason the tree stamp doesn't work with the cached normal map
 // I have spent a lot of time trying to figure out why, but to no avail. If I
 // recompute the normal based on the height map, however, it works fine. Works
@@ -89,6 +91,7 @@
             int _FalloffTextureChannel;
 
             float3 _NoiseUV;
+            float3 _TerrainSize;
  
             float3 _RealSize;
 
@@ -108,7 +111,7 @@
 
             float2 _HeightRange;
             float2 _HeightSmoothness;
-            float4 _HeightNoise;
+            float4 _HeightNoise1;
             float4 _HeightNoise2;
             int _HeightNoiseChannel;
             float _HeightWeight;
@@ -147,6 +150,10 @@
             float4 _FalloffNoise2;
             int _FalloffNoiseChannel;
             float _FalloffAreaBoost;
+
+            float4x4 _PaintAreaMatrix;
+            Texture2D _PaintAreaFalloffTexture;
+            float _PaintAreaClamp;
 
             float2 RotateScaleUV(float2 uv, float2 amt)
             {
@@ -294,17 +301,17 @@
 
                 #if _HEIGHTFILTER
                     #if _HEIGHTNOISE
-                        height += Noise(noiseUV, _HeightNoise) / realHeight;
+                        height += Noise(noiseUV, _HeightNoise1) / realHeight;
                     #elif _HEIGHTFBM
-                        height += NoiseFBM(noiseUV, _HeightNoise) / realHeight;
+                        height += NoiseFBM(noiseUV, _HeightNoise1) / realHeight;
                     #elif _HEIGHTWORLEY
-                        height += NoiseWorley(noiseUV, _HeightNoise) / realHeight;
+                        height += NoiseWorley(noiseUV, _HeightNoise1) / realHeight;
                     #elif _HEIGHTWORM
-                        height += NoiseWorm(noiseUV, _HeightNoise) / realHeight;
+                        height += NoiseWorm(noiseUV, _HeightNoise1) / realHeight;
                     #elif _HEIGHTWORMFBM
-                        height += NoiseWormFBM(noiseUV, _HeightNoise) / realHeight;
+                        height += NoiseWormFBM(noiseUV, _HeightNoise1) / realHeight;
                     #elif _HEIGHTNOISETEXTURE
-                        height += (((SAMPLE(_HeightNoiseTexture, shared_linear_repeat, noiseUV * _HeightNoiseTexture_ST.xy + _HeightNoiseTexture_ST.zw)[_HeightNoiseChannel])[_HeightNoiseChannel]) * _HeightNoise.y + _HeightNoise.z) / realHeight;
+                        height += (((SAMPLE(_HeightNoiseTexture, shared_linear_repeat, noiseUV * _HeightNoiseTexture_ST.xy + _HeightNoiseTexture_ST.zw)[_HeightNoiseChannel])[_HeightNoiseChannel]) * _HeightNoise1.y + _HeightNoise1.z) / realHeight;
                     #endif
 
                     #if _HEIGHTCURVE
@@ -415,6 +422,22 @@
                     d *= -1;
                     d /= max(0.0001, _FalloffAreaRange - noise);
                     falloff *= saturate(d);
+                }
+                #endif
+
+                // not else, goes on top..
+                #if _USEFALLOFFPAINTAREA
+                {
+                    float2 worldPosition = noiseUV * _TerrainSize.xz;
+                    #if !_SPLATSTAMP
+                        worldPosition *= (1000 / _TerrainSize.xz);
+                    #endif// * (1000 / _TerrainSize.xz);
+                    float3 localPos = mul(_PaintAreaMatrix, float4(worldPosition.x, 0, worldPosition.y, 1)).xyz;
+                    float2 uv = float2(localPos.x + 0.5, localPos.z + 0.5);
+                    float falloffSample = SAMPLE(_PaintAreaFalloffTexture, shared_linear_clamp, uv).r;
+                    falloff *= falloffSample;
+                    if (_PaintAreaClamp > 0.5)
+                        falloff *= RectFalloff(uv, 1);
                 }
                 #endif
 

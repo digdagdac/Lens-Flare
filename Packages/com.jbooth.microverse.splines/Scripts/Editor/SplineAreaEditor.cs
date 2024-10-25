@@ -1,8 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using System.IO;
 #if UNITY_2021_3_OR_NEWER
 
 using UnityEngine.Splines;
@@ -14,19 +11,26 @@ namespace JBooth.MicroVerseCore
     [CanEditMultipleObjects]
     public class SplineAreaEditor : Editor
     {
-
         public override void OnInspectorGUI()
         {
             GUIUtil.DrawHeaderLogo();
             serializedObject.Update();
             SplineArea area = target as SplineArea;
+
+            if (area.spline != null && area.spline.Spline != null && !area.spline.Spline.Closed)
+            {
+                EditorGUILayout.HelpBox("Spline is open, this considers the spline as path. Close spline for area mode.", MessageType.Info);
+            }
+
             EditorGUI.BeginChangeCheck();
+
             EditorGUILayout.PropertyField(serializedObject.FindProperty("spline"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("sdfRes"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSDF"));
 
             GUIUtil.DrawNoise(area, area.positionNoise, "Position Noise", FilterSet.NoiseOp.Add, false, false);
-            
+
+
             serializedObject.ApplyModifiedProperties();
             if (EditorGUI.EndChangeCheck())
             {

@@ -206,7 +206,7 @@ namespace JBooth.MicroVerseCore.Browser
                         Bounds worldBounds = TerrainUtil.ComputeTerrainBounds(terrains);
 
                         // position
-                        float y = worldBounds.center.y - worldBounds.size.y / 2f;
+                        float y = worldBounds.center.y;
 
                         if (browser.GetSelectedTab() == Tab.Roads || browser.GetSelectedTab() == Tab.Caves)
                         {

@@ -122,7 +122,7 @@ namespace JBooth.MicroVerseCore
             }
             else
             {
-                Terrain[] terrains = GameObject.FindObjectsOfType<Terrain>();
+                Terrain[] terrains = GameObject.FindObjectsByType<Terrain>(FindObjectsSortMode.None);
                 if (terrains.Length == 0)
                 {
                     Debug.LogError("No terrains found in scene");
@@ -240,14 +240,20 @@ namespace JBooth.MicroVerseCore
             CreateGO("Occlusion Stamp").AddComponent<OcclusionStamp>();
         }
 
-        [MenuItem("GameObject/MicroVerse/" + MenuStamps + "Create Texture Stamp", false, k_MenuPriorityStamps + 10)]
+        [MenuItem("GameObject/MicroVerse/" + MenuStamps + "Create Paint Falloff Area", false, k_MenuPriorityStamps + 10)]
+        static void CreatePaintFalloffArea()
+        {
+            CreateGO("Paint Falloff Area").AddComponent<PaintFalloffArea>();
+        }
+
+        [MenuItem("GameObject/MicroVerse/" + MenuStamps + "Create Texture Stamp", false, k_MenuPriorityStamps + 11)]
         static void CreateTextureStamp()
         {
             CreateGO("Texture Stamp").AddComponent<TextureStamp>();
         }
 
 #if __MICROVERSE_VEGETATION__
-        [MenuItem("GameObject/MicroVerse/" + MenuStamps + "Create Tree Stamp", false, k_MenuPriorityStamps + 11)]
+        [MenuItem("GameObject/MicroVerse/" + MenuStamps + "Create Tree Stamp", false, k_MenuPriorityStamps + 12)]
         static void CreateTreeStamp()
         {
             CreateGO("Tree Stamp").AddComponent<TreeStamp>();

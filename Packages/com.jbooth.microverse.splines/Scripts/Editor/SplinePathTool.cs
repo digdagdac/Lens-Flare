@@ -81,7 +81,7 @@ namespace JBooth.MicroVerseCore
         {
             
             var splineDataTarget = target as SplinePath;
-            if (ToolManager.IsActiveTool(this) || splineDataTarget.spline == null)
+            if (ToolManager.IsActiveTool(this) || splineDataTarget == null || splineDataTarget.spline == null)
                 return;
 
             while (splineDataTarget.splineWidths.Count > splineDataTarget.spline.Splines.Count)

@@ -317,8 +317,8 @@ namespace JBooth.MicroVerseCore
                         float scaleAtBoundaries = EditorGUILayout.Slider(CScaleMultiplierAtBoundaries, randoms.scaleMultiplierAtBoundaries, 0.2f, 4.0f);
                         bool densityByWeight = EditorGUILayout.Toggle(CDensityByWeight, randoms.densityByWeight);
                         bool randomRotation = EditorGUILayout.Toggle(CRandomRotation, randoms.randomRotation);
-                        
-                        float sink = EditorGUILayout.FloatField(CSink, randoms.sink);
+
+                        float sink = 0;// EditorGUILayout.FloatField(CSink, randoms.sink);
 
                         if (EditorGUI.EndChangeCheck())
                         {

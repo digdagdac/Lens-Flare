@@ -126,7 +126,7 @@ namespace JBooth.MicroVerseCore
             return new Vector3(ts.x * hr, ts.y * 2, ts.z * hr);
         }
 
-        public static Matrix4x4 ComputeStampMatrix(Terrain terrain, Transform transform, bool heightStamp = false)
+        public static Matrix4x4 ComputeStampMatrix(Terrain terrain, Transform transform, bool heightStamp = false, int sizeXOffset = 0, int sizeZOffset = 0)
         {
             var ts = terrain.terrainData.size;
             
@@ -143,7 +143,7 @@ namespace JBooth.MicroVerseCore
         
             var localPosition = terrain.transform.worldToLocalMatrix.MultiplyPoint3x4(transform.position);
             var size = transform.lossyScale;
-            Vector2 size2D = new Vector2(size.x, size.z);
+            Vector2 size2D = new Vector2(size.x + sizeXOffset, size.z + sizeZOffset);
             var pos = new Vector2(localPosition.x, localPosition.z);
 
             // use potentially expanded range to compute 01 value in height stamp

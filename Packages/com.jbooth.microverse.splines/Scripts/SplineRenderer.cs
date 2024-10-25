@@ -40,9 +40,10 @@ namespace JBooth.MicroVerseCore
             public float widthBoost;
             public float sdfMult;
             public Mode mode;
+            public int numSteps;
         };
 
-        public void Render(SplineContainer sc, Terrain terrain, Noise positionNoise, Noise widthNoise, int sdfRes = 512, float maxSDF = 256, RenderDesc.Mode mode = RenderDesc.Mode.Area)
+        public void Render(SplineContainer sc, Terrain terrain, Noise positionNoise, Noise widthNoise, int sdfRes = 512, float maxSDF = 256, RenderDesc.Mode mode = RenderDesc.Mode.Area, int numSteps = 128)
         {
             RenderDesc rd = new RenderDesc()
             {
@@ -50,12 +51,13 @@ namespace JBooth.MicroVerseCore
                 widthBoost = 0,
                 mode = mode,
                 positionNoise = positionNoise,
-                widthNoise = widthNoise
+                widthNoise = widthNoise,
+                numSteps = numSteps
             };
-            Render(new RenderDesc[1] { rd }, terrain, sdfRes, maxSDF);
+            Render(new RenderDesc[1] { rd }, terrain, sdfRes, maxSDF, numSteps);
         }
 
-        public void Render(SplineContainer sc, Terrain terrain, Noise positionNoise, Noise widthNoise, List<SplinePath.SplineWidthData> widths = null, Easing easing = null, int sdfRes = 512, float maxSDF = 256)
+        public void Render(SplineContainer sc, Terrain terrain, Noise positionNoise, Noise widthNoise, List<SplinePath.SplineWidthData> widths = null, Easing easing = null, int sdfRes = 512, float maxSDF = 256, int numSteps = 128)
         {
             RenderDesc rd = new RenderDesc()
             {
@@ -65,14 +67,27 @@ namespace JBooth.MicroVerseCore
                 positionNoise = positionNoise,
                 widthNoise = widthNoise,
                 widthBoost = 0,
-                mode = RenderDesc.Mode.Path
+                mode = RenderDesc.Mode.Path,
+                numSteps = numSteps
             };
-            Render(new RenderDesc[1] { rd }, terrain, sdfRes, maxSDF);
+            Render(new RenderDesc[1] { rd }, terrain, sdfRes, maxSDF, numSteps);
         }
 
+        static int _MaxSDF = Shader.PropertyToID("_MaxSDF");
+        static int _RealSize = Shader.PropertyToID("_RealSize");
+        static int _Transform = Shader.PropertyToID("_Transform");
+        static int _Info = Shader.PropertyToID("_Info");
+        static int _WidthInfo = Shader.PropertyToID("_WidthInfo");
+        static int _Curves = Shader.PropertyToID("_Curves");
+        static int _CurveLengths = Shader.PropertyToID("_CurveLengths");
+        static int _WidthBoost = Shader.PropertyToID("_WidthBoost");
+        static int _SDFMult = Shader.PropertyToID("_SDFMult");
+        static int _NumSegments = Shader.PropertyToID("_NumSegments");
+        static int _SplineBounds = Shader.PropertyToID("_SplineBounds");
+        static int _Widths = Shader.PropertyToID("_Widths");
 
         public float lastMaxSDF;
-        public void Render(RenderDesc[] renderDescs, Terrain terrain, int sdfRes = 512, float maxSDF = 256)
+        public void Render(RenderDesc[] renderDescs, Terrain terrain, int sdfRes = 512, float maxSDF = 256, int numSteps = 128)
         {
             lastMaxSDF = maxSDF;
             // allocate main spline texture
@@ -121,8 +136,8 @@ namespace JBooth.MicroVerseCore
             RenderTexture rtLargeB = RenderTexture.GetTemporary(targetRes, targetRes, 0, rtf, RenderTextureReadWrite.Linear);
 
 
-            splineSDFMat.SetVector("_RealSize", TerrainUtil.ComputeTerrainSize(terrain));
-            splineSDFMat.SetMatrix("_Transform", terrain.transform.localToWorldMatrix);
+            splineSDFMat.SetVector(_RealSize, TerrainUtil.ComputeTerrainSize(terrain));
+            splineSDFMat.SetMatrix(_Transform, terrain.transform.localToWorldMatrix);
             
 
             Graphics.Blit(Texture2D.blackTexture, splineSDF);
@@ -247,17 +262,21 @@ namespace JBooth.MicroVerseCore
 
 
                     info = new Vector4(splineSpline.Count, splineSpline.Closed ? 1 : 0, splineSpline.GetLength(), 0);
-                    splineSDFMat.SetFloat("_MaxSDF", maxSDF + maxWidth);
-                    splineSDFMat.SetVector("_Info", info);
-                    splineSDFMat.SetVector("_WidthInfo", widthInfo);
-                    splineSDFMat.SetBuffer("_Curves", curveBuffer);
-                    splineSDFMat.SetBuffer("_CurveLengths", lengthBuffer);
-                    splineSDFMat.SetFloat("_WidthBoost", widthBoost);
-                    splineSDFMat.SetFloat("_SDFMult", sdfMult);
+                    splineSDFMat.SetFloat(_MaxSDF, maxSDF + maxWidth);
+                    splineSDFMat.SetVector(_Info, info);
+                    splineSDFMat.SetVector(_WidthInfo, widthInfo);
+
+                    
+
+                    splineSDFMat.SetBuffer(_Curves, curveBuffer);
+                    splineSDFMat.SetBuffer(_CurveLengths, lengthBuffer);
+                    splineSDFMat.SetFloat(_WidthBoost, widthBoost);
+                    splineSDFMat.SetFloat(_SDFMult, sdfMult);
+                    splineSDFMat.SetFloat(_NumSegments, numSteps);
                     Bounds splineBounds = splineSpline.GetBounds(smtx);
-                    splineSDFMat.SetVector("_SplineBounds", new Vector4(splineBounds.min.x, splineBounds.max.x, splineBounds.min.z, splineBounds.max.z));
+                    splineSDFMat.SetVector(_SplineBounds, new Vector4(splineBounds.min.x, splineBounds.max.x, splineBounds.min.z, splineBounds.max.z));
                     if (widthBuffer != null)
-                        splineSDFMat.SetBuffer("_Widths", widthBuffer);
+                        splineSDFMat.SetBuffer(_Widths, widthBuffer);
 
                     if (desc.positionNoise != null && desc.positionNoise.amplitude != 0)
                     {

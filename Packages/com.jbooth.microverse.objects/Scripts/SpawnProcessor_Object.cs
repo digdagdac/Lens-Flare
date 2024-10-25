@@ -164,7 +164,7 @@ namespace JBooth.MicroVerseCore
 
         public static List<Pool> pools = new List<Pool>();
 
-        public static GameObject Spawn(Terrain t, GameObject go, Transform parent, bool asPrefab = false, bool clearPool = false)
+        public static GameObject Spawn(Terrain t, GameObject go, Transform parent, bool asPrefab = false)
         {
 #if UNITY_EDITOR
             foreach (var pool in pools)
@@ -190,10 +190,6 @@ namespace JBooth.MicroVerseCore
 #else
             GameObject ret = GameObject.Instantiate(go, parent);
 #endif
-            //if (ret.scene != t.gameObject.scene)
-            {
-            //    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(ret, t.gameObject.scene);
-            }
             return ret;
         }
 

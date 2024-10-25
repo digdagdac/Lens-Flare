@@ -372,6 +372,12 @@ namespace JBooth.MicroVerseCore
                 return foFilter.splineArea.GetBounds();
             }
 #endif
+
+            if (foType == FalloffFilter.FilterType.Global && foFilter.paintArea != null && foFilter.paintArea.clampOutsideOfBounds)
+            {
+                return foFilter.paintArea.GetBounds();
+            }
+
             if (foType == FalloffFilter.FilterType.Global)
                 return new Bounds(Vector3.zero, new Vector3(99999, 999999, 99999));
             else
@@ -433,6 +439,11 @@ namespace JBooth.MicroVerseCore
         static Shader treeStampShader = null;
         public void Initialize()
         {
+            if(prototypes.Count == 0)
+            {
+                return;
+            }
+
             if (treeStampShader == null)
             {
                 treeStampShader = Shader.Find("Hidden/MicroVerse/VegetationFilter");
@@ -772,7 +783,12 @@ namespace JBooth.MicroVerseCore
                     RenderTexture.ReleaseTemporary(k);
                 }
             }
-            randomizationBuffer.Dispose();
+            
+            if(randomizationBuffer != null)
+            {
+                randomizationBuffer.Dispose();
+            }
+
             sdfs.Clear();
         }
 

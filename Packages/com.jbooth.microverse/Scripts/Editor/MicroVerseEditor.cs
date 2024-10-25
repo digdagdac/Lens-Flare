@@ -40,7 +40,7 @@ namespace JBooth.MicroVerseCore
     {
         public static string[] OnWillSaveAssets(string[] paths)
         {
-            MicroVerse instance = GameObject.FindObjectOfType<MicroVerse>();
+            MicroVerse instance = GameObject.FindFirstObjectByType<MicroVerse>();
             if (instance != null)
             {
                 if (instance.options.settings.useSceneCulling)

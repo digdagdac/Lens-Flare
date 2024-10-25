@@ -137,6 +137,10 @@ namespace JBooth.MicroVerseCore
                 return foFilter.splineArea.GetBounds();
             }
 #endif
+            if (foType == FalloffFilter.FilterType.Global && foFilter.paintArea != null && foFilter.paintArea.clampOutsideOfBounds)
+            {
+                return foFilter.paintArea.GetBounds();
+            }
             return TerrainUtil.GetBounds(transform);
         }
 
@@ -199,7 +203,7 @@ namespace JBooth.MicroVerseCore
             {
                 keywordBuilder.Add("_USEPOWORTILT");
             }
-
+            
             keywordBuilder.Assign(material);
             Graphics.Blit(source, dest, material);
             return true;

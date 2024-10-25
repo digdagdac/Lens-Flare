@@ -30,7 +30,7 @@ namespace JBooth.MicroVerseCore
             GL.Clear(false, true, Color.clear);
             RenderTexture.active = null;
 
-            desc = new RenderTextureDescriptor(maskSize, maskSize, RenderTextureFormat.R8, 0, 0);
+            desc = new RenderTextureDescriptor(maskSize, maskSize, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm, 0, 0);
             objectMask = RenderTexture.GetTemporary(desc);
             objectMask.name = "OcclusionData::mask";
             objectMask.wrapMode = TextureWrapMode.Clamp;

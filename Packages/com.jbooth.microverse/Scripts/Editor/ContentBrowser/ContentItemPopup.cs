@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,15 +6,20 @@ namespace JBooth.MicroVerseCore.Browser
 {
     public class ContentItemPopup : PopupWindowContent
     {
+        private GUIContent prepareMoveContent = new GUIContent("Prepare Move", "Select a preset item for movement. Use Insert Here to effectively move the preset item.\n\nShortcut: ctrl + x");
+        private GUIContent insertBeforeContent = new GUIContent("Insert Before", "Inserts a preset item that was previously specified with 'Prepare Move' before current preset item.\n\nShorcut: ctrl + v");
+
         private enum Feature
         {
             UpdateThumbnail,
             PingCollection,
+            PingHeightmap,
+            PingPrefab,
             Rename,
+            PrepareMove,
+            InsertBefore,
             Close
         }
-
-        private int previewIconSize = 128;
 
         private ContentBrowser browser;
         private PresetItem presetItem;
@@ -24,6 +28,9 @@ namespace JBooth.MicroVerseCore.Browser
 
         public ContentItemPopup(ContentBrowser browser, PresetItem presetItem)
         {
+            if (presetItem == null || presetItem.collection == null)
+                return;
+
             this.browser = browser;
             this.presetItem = presetItem;
 
@@ -35,6 +42,7 @@ namespace JBooth.MicroVerseCore.Browser
                 case ContentType.Height:
                     //features.Add(Feature.UpdateThumbnail);
                     features.Add(Feature.PingCollection);
+                    features.Add(Feature.PingHeightmap);
                     //features.Add(Feature.Rename);
                     features.Add(Feature.Close);
                     break;
@@ -42,7 +50,10 @@ namespace JBooth.MicroVerseCore.Browser
                 default:
                     features.Add(Feature.UpdateThumbnail);
                     features.Add(Feature.PingCollection);
+                    features.Add(Feature.PingPrefab);
                     features.Add(Feature.Rename);
+                    features.Add(Feature.PrepareMove);
+                    features.Add(Feature.InsertBefore);
                     features.Add(Feature.Close);
                     break;
             }
@@ -60,7 +71,7 @@ namespace JBooth.MicroVerseCore.Browser
             {
                 if (GUILayout.Button("Update Thumbnail"))
                 {
-                    SaveIcon();
+                    ThumbnailCreator.SaveIcon( presetItem);
                 }
             }
 
@@ -68,7 +79,25 @@ namespace JBooth.MicroVerseCore.Browser
             {
                 if (GUILayout.Button("Ping Collection"))
                 {
-                    Ping();
+                    PingCollection();
+
+                }
+            }
+
+            if (features.Contains(Feature.PingHeightmap))
+            {
+                if (GUILayout.Button("Ping Heightmap"))
+                {
+                    PingHeightmap();
+
+                }
+            }
+
+            if (features.Contains(Feature.PingPrefab))
+            {
+                if (GUILayout.Button("Ping Prefab"))
+                {
+                    PingPrefab();
 
                 }
             }
@@ -80,6 +109,31 @@ namespace JBooth.MicroVerseCore.Browser
                     Rename();
                 }
             }
+
+
+            if (features.Contains(Feature.PrepareMove))
+            {
+                if (GUILayout.Button(prepareMoveContent))
+                {
+                    ContentSelectionGridMovement.PrepareMove(presetItem);
+                    editorWindow.Close();
+
+                }
+            }
+
+            bool moveHereEnabled = ContentSelectionGridMovement.MoveHereEnabled(presetItem);
+
+            GUI.enabled = moveHereEnabled;
+            if (features.Contains(Feature.InsertBefore))
+            {
+                if (GUILayout.Button(insertBeforeContent))
+                {
+                    ContentSelectionGridMovement.InsertBefore(presetItem);
+                    editorWindow.Close();
+
+                }
+            }
+            GUI.enabled = true;
 
             if (features.Contains(Feature.Close))
             {
@@ -98,95 +152,7 @@ namespace JBooth.MicroVerseCore.Browser
         {
         }
 
-        void SaveIcon()
-        {
-            if (presetItem == null)
-                return;
 
-            ContentData item = presetItem.content;
-
-            if (item.prefab == null)
-            {
-                Debug.LogError("Prefab missing");
-                return;
-            }
-
-            bool confirmOverwrite = true;
-
-            // create image
-
-            GameObject prefab = item.prefab;
-            string prefabPath = AssetDatabase.GetAssetPath(prefab);
-            string directory = Path.GetDirectoryName(prefabPath);
-            string fileName = prefab.name;
-
-            Texture2D texture = CaptureSceneView.Capture(previewIconSize, previewIconSize);
-
-            string imageOutputPath;
-
-            bool isTextureSaved = SaveTexture(directory, fileName, texture, confirmOverwrite, out imageOutputPath);
-
-            Texture2D.DestroyImmediate(texture);
-            texture = null;
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            if (isTextureSaved)
-            {
-
-                // update browser content
-
-                ContentCollection selectedCollection = presetItem.collection;
-                string collectionPath = AssetDatabase.GetAssetPath(selectedCollection);
-
-                UnityEngine.Object collectionObject = AssetDatabase.LoadAssetAtPath<ContentCollection>(collectionPath);
-                ContentCollection contentCollection = collectionObject as ContentCollection;
-
-                SerializedObject contentCollectionSerializedObject = new SerializedObject(contentCollection);
-
-                Texture2D previewImage = AssetDatabase.LoadAssetAtPath(imageOutputPath, typeof(Texture2D)) as Texture2D;
-
-                contentCollection.contents[presetItem.collectionIndex].previewImage = previewImage;
-
-                EditorUtility.SetDirty(contentCollection);
-
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-            }
-
-
-
-        }
-
-        private bool SaveTexture(string path, string fileName, Texture2D texture, bool confirmOverwrite, out string outputPath)
-        {
-
-            outputPath = path + Path.DirectorySeparatorChar + fileName + ".png";
-
-            // overwrite check
-            if (confirmOverwrite)
-            {
-                bool exists = File.Exists(outputPath);
-
-                if (exists)
-                {
-                    bool isOverwrite = EditorUtility.DisplayDialog($"Overwrite File", "File exists:\n\n" + outputPath + "\n\nOverwrite?", "Yes", "No");
-
-                    if (!isOverwrite)
-                        return false;
-                }
-            }
-
-            Debug.Log("Saving: " + outputPath);
-
-            byte[] bytes = ImageConversion.EncodeToPNG(texture);
-
-            System.IO.File.WriteAllBytes(outputPath, bytes);
-
-            return true;
-
-        }
 
         void Rename()
         {
@@ -215,12 +181,38 @@ namespace JBooth.MicroVerseCore.Browser
 
         }
 
-        void Ping()
+        void PingCollection()
         {
             if (presetItem == null)
                 return;
 
             EditorGUIUtility.PingObject(presetItem.collection);
+        }
+
+        void PingHeightmap()
+        {
+            if (presetItem == null)
+                return;
+
+            ContentCollection collection = presetItem.collection;
+            int index = presetItem.collectionIndex;
+            ContentData data = collection.contents[index];
+
+            Texture2D heightmap = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(new GUID(data.stamp)));
+            EditorGUIUtility.PingObject(heightmap);
+
+        }
+
+        void PingPrefab()
+        {
+            if (presetItem == null)
+                return;
+
+            ContentCollection collection = presetItem.collection;
+            int index = presetItem.collectionIndex;
+            ContentData data = collection.contents[index];
+
+            EditorGUIUtility.PingObject(data.prefab);
         }
     }
 }

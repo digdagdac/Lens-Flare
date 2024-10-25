@@ -1,12 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.Collections;
-using Unity.Jobs;
-using Unity.Burst;
-using Unity.Mathematics;
-using UnityEngine.Rendering;
-using Unity.Collections.LowLevel.Unsafe;
 
 namespace JBooth.MicroVerseCore
 {
@@ -45,9 +39,11 @@ namespace JBooth.MicroVerseCore
         {
             FalloffOverride fo = GetComponentInParent<FalloffOverride>();
             var foType = filterSet.falloffFilter.filterType;
+            var filter = filterSet.falloffFilter;
             if (fo != null && fo.enabled)
             {
                 foType = fo.filter.filterType;
+                filter = fo.filter;
             }
 #if __MICROVERSE_SPLINES__
             if (foType == FalloffFilter.FilterType.SplineArea && filterSet.falloffFilter.splineArea != null)
@@ -55,6 +51,12 @@ namespace JBooth.MicroVerseCore
                 return filterSet.falloffFilter.splineArea.GetBounds();
             }
 #endif
+
+            if (foType == FalloffFilter.FilterType.Global && filter != null && filter.paintArea != null && filter.paintArea.clampOutsideOfBounds)
+            {
+                return filter.paintArea.GetBounds();
+            }
+
             if (foType == FalloffFilter.FilterType.Global)
                 return new Bounds(Vector3.zero, new Vector3(99999, 999999, 99999));
             else
@@ -93,7 +95,6 @@ namespace JBooth.MicroVerseCore
             }
             keywordBuilder.ClearInitial();
             filterSet.PrepareMaterial(this.transform, material, keywordBuilder.initialKeywords);
-
         }
 
         public void InqTreePrototypes(List<TreePrototypeSerializable> trees)
@@ -105,11 +106,14 @@ namespace JBooth.MicroVerseCore
         static int _Normalmap = Shader.PropertyToID("_Normalmap");
         static int _Curvemap = Shader.PropertyToID("_Curvemap");
         static int _Flowmap = Shader.PropertyToID("_Flowmap");
+        static int _IndexMap = Shader.PropertyToID("_IndexMap");
+        static int _WeightMap = Shader.PropertyToID("_WeightMap");
 
         public void ApplyTreeClear(TreeData td)
         {
             if (!clearTrees)
                 return;
+
             keywordBuilder.Clear();
             keywordBuilder.Add("_RECONSTRUCTNORMAL");
             var textureLayerWeights = filterSet.GetTextureWeights(td.terrain.terrainData.terrainLayers);
@@ -124,6 +128,8 @@ namespace JBooth.MicroVerseCore
 
             RenderTexture temp = RenderTexture.GetTemporary(td.treeClearMap.descriptor);
             material.SetFloat("_LayerIndex", td.layerIndex);
+            material.SetTexture(_IndexMap, td.dataCache.indexMaps[td.terrain]);
+            material.SetTexture(_WeightMap, td.dataCache.weightMaps[td.terrain]);
             temp.name = "TreeClear";
             Graphics.Blit(td.treeClearMap, temp, material);
             RenderTexture.active = null;
@@ -147,9 +153,11 @@ namespace JBooth.MicroVerseCore
             material.SetTexture(_Flowmap, dd.flowMap);
             filterSet.PrepareTransform(this.transform, dd.terrain, material, keywordBuilder.keywords, GetTerrainScalingFactor(dd.terrain));
             keywordBuilder.Assign(material);
-
+            
             RenderTexture temp = RenderTexture.GetTemporary(dd.clearMap.descriptor);
             material.SetFloat("_LayerIndex", dd.layerIndex);
+            material.SetTexture(_IndexMap, dd.dataCache.indexMaps[dd.terrain]);
+            material.SetTexture(_WeightMap, dd.dataCache.weightMaps[dd.terrain]);
             temp.name = "DetailClear";
             Graphics.Blit(dd.clearMap, temp, material);
             RenderTexture.active = null;
@@ -222,6 +230,8 @@ namespace JBooth.MicroVerseCore
             material.SetTexture(_Normalmap, td.normalMap);
             material.SetTexture(_Curvemap, td.curveMap);
             material.SetTexture(_Flowmap, td.flowMap);
+            material.SetTexture(_IndexMap, td.indexMap);
+            material.SetTexture(_WeightMap, td.weightMap);
             filterSet.PrepareTransform(this.transform, td.terrain, material, keywordBuilder.keywords, GetTerrainScalingFactor(td.terrain));
             keywordBuilder.Assign(material);
 

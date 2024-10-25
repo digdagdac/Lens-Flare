@@ -9,12 +9,30 @@ namespace JBooth.MicroVerseCore
 {
     public class SplinePath : Stamp, IHeightModifier, ITextureModifier
     {
+        public enum CombineMode
+        {
+            Override = 0,
+            Max = 1,
+            Min = 2,
+            Blend = 9,
+        }
+        public CombineMode heightBlendMode = CombineMode.Override;
         public enum SDFRes
         {
             k256 = 256,
             k512 = 512,
             k1024 = 1024,
             k2048 = 2048
+        }
+
+        public enum SearchQuality
+        {
+            VeryLow = 64,
+            Low = 128,
+            Medium = 256,
+            High = 512,
+            VeryHigh = 1024,
+            ExtremelyHigh = 2048
         }
 
         [HideInInspector] public SplineRenderer.RenderDesc[] multiSpline;
@@ -24,10 +42,15 @@ namespace JBooth.MicroVerseCore
 
         public Noise positionNoise = new Noise();
         public Noise widthNoise = new Noise();
+        
+        [Tooltip("Blend between existing height map and new one")]
+        [Range(0, 1)] public float blend = 1; 
 
         public bool treatAsSplineArea;
         [Tooltip("Resolution of the internal SDF used for the spline. Higher makes edits take longer")]
         public SDFRes sdfRes = SDFRes.k512;
+        [Tooltip("Higher values will spend more time finding the closest point on the spline, improving quality but increasing update times")]
+        public SearchQuality searchQuality = SearchQuality.Medium;
         [Tooltip("Should the heightmap be adjusted to match the spline")]
         public bool modifyHeightMap = true;
         [Tooltip("Width of the area")]
@@ -36,6 +59,8 @@ namespace JBooth.MicroVerseCore
         public float smoothness = 2;
         [Tooltip("Positive values push the terrain down, negative up")]
         public float trench = 0;
+        public AnimationCurve trenchCurve = AnimationCurve.Constant(0, 1, 0);
+        public bool useTrenchCurve;
         public Noise heightNoise = new Noise();
         public Easing embankmentEasing = new Easing();
         public Noise embankmentNoise = new Noise();
@@ -199,11 +224,11 @@ namespace JBooth.MicroVerseCore
                 {
                     if (multiSpline != null)
                     {
-                        sr.Render(multiSpline, terrain, (int)sdfRes, mx);
+                        sr.Render(multiSpline, terrain, (int)sdfRes, mx, (int)searchQuality);
                     }
                     else if (spline != null)
                     {
-                        sr.Render(spline, terrain, positionNoise, widthNoise, splineWidths, splineWidthEasing, (int)sdfRes, mx);
+                        sr.Render(spline, terrain, positionNoise, widthNoise, splineWidths, splineWidthEasing, (int)sdfRes, mx, (int)searchQuality);
                     }
                 }
                 return sr;
@@ -217,11 +242,11 @@ namespace JBooth.MicroVerseCore
                     bounds = new Bounds(Vector3.zero, Vector3.zero);
                     if (multiSpline != null)
                     {
-                        sr.Render(multiSpline, terrain, (int)sdfRes, ComputeMaxSDF());
+                        sr.Render(multiSpline, terrain, (int)sdfRes, ComputeMaxSDF(), (int)searchQuality);
                     }
                     else if (spline != null)
                     {
-                        sr.Render(spline, terrain, positionNoise, widthNoise, splineWidths, splineWidthEasing, (int)sdfRes, ComputeMaxSDF());
+                        sr.Render(spline, terrain, positionNoise, widthNoise, splineWidths, splineWidthEasing, (int)sdfRes, ComputeMaxSDF(), (int)searchQuality);
                     }
                     
                     splineRenderers.Add(terrain, sr);
@@ -275,6 +300,7 @@ namespace JBooth.MicroVerseCore
             base.OnDestroy();
         }
 
+
         static int _SplineSDF = Shader.PropertyToID("_SplineSDF");
         static int _TerrainHeight = Shader.PropertyToID("_TerrainHeight");
         static int _TreeWidth = Shader.PropertyToID("_TreeWidth");
@@ -289,6 +315,7 @@ namespace JBooth.MicroVerseCore
         static int _AlphaMapSize = Shader.PropertyToID("_AlphaMapSize");
         static int _SplatWeight = Shader.PropertyToID("_SplatWeight");
         static int _HeightMapSize = Shader.PropertyToID("_HeightMapSize");
+        static int _Blend = Shader.PropertyToID("_Blend");
         static Shader sdfToMaskShader = null;
         static Material sdfToMaskMat = null;
         public bool ApplyHeightStamp(RenderTexture source, RenderTexture dest,
@@ -309,6 +336,7 @@ namespace JBooth.MicroVerseCore
                     heightMat.SetFloat(_HeightMapSize, source.width);
                     keywordBuilder.Assign(heightMat);
                     Graphics.Blit(source, dest, heightMat);
+                    heightMat.SetFloat(_Blend, blend);
                     ret = true;
                 }
 
@@ -327,13 +355,13 @@ namespace JBooth.MicroVerseCore
                     {
                         sdfToMaskMat.EnableKeyword("_TREATASAREA");
                     }
-                    sdfToMaskMat.SetFloat(_HeightWidth, occludeHeightMod ? occludeHeightWidth : 0);
+                    sdfToMaskMat.SetFloat(_HeightWidth, occludeHeightMod ? occludeHeightWidth : -1);
                     sdfToMaskMat.SetFloat(_HeightSmoothness, occludeHeightSmoothness);
-                    sdfToMaskMat.SetFloat(_SplatWidth, occludeTextureMod ? occludeTextureWidth : 0);
+                    sdfToMaskMat.SetFloat(_SplatWidth, occludeTextureMod ? occludeTextureWidth : -1);
                     sdfToMaskMat.SetFloat(_SplatSmoothness, occludeTextureSmoothness);
-                    sdfToMaskMat.SetFloat(_TreeWidth, clearTrees ? treeWidth : 0);
+                    sdfToMaskMat.SetFloat(_TreeWidth, clearTrees ? treeWidth : -1);
                     sdfToMaskMat.SetFloat(_TreeSmoothness, treeSmoothness);
-                    sdfToMaskMat.SetFloat(_DetailWidth, clearDetails ? detailWidth : 0);
+                    sdfToMaskMat.SetFloat(_DetailWidth, clearDetails ? detailWidth : -1);
                     sdfToMaskMat.SetFloat(_DetailSmoothness, detailSmoothness);
 
                     sdfToMaskMat.SetTexture(_SplineSDF, sr.splineSDF);
@@ -400,6 +428,7 @@ namespace JBooth.MicroVerseCore
         Texture2D cachedSplineTextureWeight;
         Texture2D cachedSplineTreeWeight;
         Texture2D cachedSplineDetailWeight;
+        Texture2D cachedSplineTrenchWeight;
 
 
         public void ClearCachedSplineTextureCurve()
@@ -423,6 +452,14 @@ namespace JBooth.MicroVerseCore
             if (cachedSplineDetailWeight != null)
             {
                 DestroyImmediate(cachedSplineDetailWeight);
+            }
+        }
+
+        public void ClearCachedSplineTrenchCurve()
+        {
+            if (cachedSplineTrenchWeight != null)
+            {
+                DestroyImmediate(cachedSplineTrenchWeight);
             }
         }
 
@@ -455,6 +492,22 @@ namespace JBooth.MicroVerseCore
                     cachedSplineTreeWeight.SetPixel(i, 0, new Color(treeCurve.Evaluate((float)i / 128.0f), 0, 0, 1));
                 }
                 cachedSplineTreeWeight.Apply();
+            }
+        }
+
+        public void UpdateCachedTrenchCurve()
+        {
+            if (cachedSplineTrenchWeight == null)
+            {
+                cachedSplineTrenchWeight = new Texture2D(128, 1, TextureFormat.RFloat, false);
+                cachedSplineTrenchWeight.filterMode = FilterMode.Bilinear;
+                cachedSplineTrenchWeight.wrapMode = TextureWrapMode.Clamp;
+                cachedSplineTrenchWeight.hideFlags = HideFlags.HideAndDontSave;
+                for (int i = 0; i < 128; ++i)
+                {
+                    cachedSplineTrenchWeight.SetPixel(i, 0, new Color(trenchCurve.Evaluate((float)i / 128.0f), 0, 0, 1));
+                }
+                cachedSplineTrenchWeight.Apply();
             }
         }
 
@@ -504,7 +557,6 @@ namespace JBooth.MicroVerseCore
                 splatMat.SetTexture(_IndexMap, indexSrc);
                 splatMat.SetFloat(_AlphaMapSize, indexSrc.width);
                 splatMat.SetFloat(_SplatWeight, splatWeight);
-
                 if (useTextureCurve)
                 {
                     keywordBuilder.Add("_SPLINECURVETEXTUREWEIGHT");
@@ -536,7 +588,9 @@ namespace JBooth.MicroVerseCore
         static int _Smoothness = Shader.PropertyToID("_Smoothness");
         static int _RealHeight = Shader.PropertyToID("_RealHeight");
         static int _Trench = Shader.PropertyToID("_Trench");
-
+        static int _TrenchCurve = Shader.PropertyToID("_TrenchCurve");
+        static int _CombineMode = Shader.PropertyToID("_CombineMode");
+        static int _CombineBlend = Shader.PropertyToID("_CombineBlend");
 
         void PrepareMaterial(Material material, HeightmapData heightmapData, List<string> keywords)
         {
@@ -554,11 +608,21 @@ namespace JBooth.MicroVerseCore
             material.SetFloat(_Width, width);
             material.SetFloat(_Smoothness, smoothness);
             material.SetFloat(_Trench, trench);
-            
+            if (useTrenchCurve)
+            {
+                keywords.Add("_SPLINECURVETRENCHWEIGHT");
+                UpdateCachedTrenchCurve();
+                material.SetTexture(_TrenchCurve, cachedSplineTrenchWeight);
+            }
+
             heightNoise.PrepareMaterial(material, "_HEIGHT", "_Height", keywords);
             material.SetFloat(_RealHeight, heightmapData.RealHeight);
+            material.SetFloat(_Blend, blend);
+            material.SetFloat(_CombineBlend, blend);
             embankmentEasing.PrepareMaterial(material, "_FALLOFF", keywords);
             embankmentNoise.PrepareMaterial(material, "_FALLOFF", "_Falloff", keywords);
+
+            material.SetInt(_CombineMode, (int)heightBlendMode); 
         }
 
 
@@ -588,6 +652,7 @@ namespace JBooth.MicroVerseCore
             material.SetTexture(_SplatNoiseTexture, splatNoise.texture);
             material.SetTextureScale(_SplatNoiseTexture, splatNoise.GetTextureScale());
             material.SetTextureOffset(_SplatNoiseTexture, splatNoise.GetTextureOffset());
+            material.SetFloat(_CombineBlend, blend);
 
             var noisePos = splatmapData.terrain.transform.position;
             noisePos.x /= splatmapData.terrain.terrainData.size.x;

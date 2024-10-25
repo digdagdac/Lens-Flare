@@ -121,6 +121,11 @@ namespace JBooth.MicroVerseCore
         public bool NeedCurvatureMap() { return (curvatureFilter.enabled); }
         public bool NeedFlowMap() { return (flowFilter.enabled); }
 
+        /// <summary>
+        /// Texture filter.
+        /// Uses a custom property drawer for property selection.
+        /// If you add a property here, you need to adjust the drawer as well.
+        /// </summary>
         [System.Serializable]
         public class TextureFilter
         {
@@ -179,7 +184,7 @@ namespace JBooth.MicroVerseCore
         static int _HeightWeight = Shader.PropertyToID("_HeightWeight");
         static int _HeightRange = Shader.PropertyToID("_HeightRange");
         static int _HeightSmoothness = Shader.PropertyToID("_HeightSmoothness");
-        static int _HeightNoise = Shader.PropertyToID("_HeightNoise");
+        static int _HeightNoise1 = Shader.PropertyToID("_HeightNoise1");
         static int _HeightNoise2 = Shader.PropertyToID("_HeightNoise");
         static int _HeightNoiseTexture = Shader.PropertyToID("_HeightNoiseTexture");
         static int _HeightNoiseChannel = Shader.PropertyToID("_HeightNoiseChannel");
@@ -216,12 +221,13 @@ namespace JBooth.MicroVerseCore
         static int _FlowNoiseChannel = Shader.PropertyToID("_FlowNoiseChannel");
 
 
-
         static int _HeightCurve = Shader.PropertyToID("_HeightCurve");
         static int _SlopeCurve = Shader.PropertyToID("_SlopeCurve");
         static int _AngleCurve = Shader.PropertyToID("_AngleCurve");
         static int _CurvatureCurve = Shader.PropertyToID("_CurvatureCurve");
         static int _FlowCurve = Shader.PropertyToID("_FlowCurve");
+        static int _GlobalOriginMTX = Shader.PropertyToID("_GlobalOriginMTX");
+        static int _TerrainSize = Shader.PropertyToID("_TerrainSize");
 
         public void PrepareTransform(Transform transform, Terrain terrain, Material material, List<string> keywords, float densityScale = 1)
         {
@@ -230,13 +236,15 @@ namespace JBooth.MicroVerseCore
             material.SetMatrix(_Transform, TerrainUtil.ComputeStampMatrix(terrain, transform)); ;
             material.SetVector(_RealSize, TerrainUtil.ComputeTerrainSize(terrain));
 
-
             var noisePos = terrain.transform.position;
+            var originShift = Shader.GetGlobalMatrix("_GlobalOriginMTX").GetPosition();
+            noisePos += originShift;
+
             noisePos.x /= terrain.terrainData.size.x;
             noisePos.z /= terrain.terrainData.size.z;
-
+            material.SetVector(_TerrainSize, terrain.terrainData.size);
             material.SetVector(_NoiseUV, new Vector3(noisePos.x, noisePos.z, densityScale));
-
+           
             if (heightFilter.enabled)
             {
                 material.SetVector(_HeightRange, heightFilter.range / realHeight);
@@ -287,7 +295,7 @@ namespace JBooth.MicroVerseCore
             if (heightFilter.enabled)
             {
                 material.SetFloat(_HeightWeight, heightFilter.weight);
-                material.SetVector(_HeightNoise, heightFilter.noise.GetParamVector());
+                material.SetVector(_HeightNoise1, heightFilter.noise.GetParamVector());
                 material.SetVector(_HeightNoise2, heightFilter.noise.GetParam2Vector());
                 material.SetTexture(_HeightNoiseTexture, heightFilter.noise.texture);
                 material.SetTextureScale(_HeightNoiseTexture, heightFilter.noise.GetTextureScale());

@@ -1,5 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.Burst.Intrinsics;
 using UnityEngine;
 
 namespace JBooth.MicroVerseCore
@@ -10,37 +13,37 @@ namespace JBooth.MicroVerseCore
         public enum FilterType
         {
             Global = 0,
-            Box,
-            Range,
-            Texture,
-            SplineArea,
-            PaintMask,
+            Box = 1,
+            Range = 2,
+            Texture = 3,
+            SplineArea = 4,
+            PaintMask = 5,
         }
 
         public enum FilterTypeNoGlobal
         {
-            Box,
-            Range,
-            Texture,
-            SplineArea,
-            PaintMask,
+            Box = 1,
+            Range = 2,
+            Texture = 3,
+            SplineArea = 4,
+            PaintMask = 5,
         }
 
         public enum FilterTypeNoPaintMask
         {
             Global = 0,
-            Box,
-            Range,
-            Texture,
-            SplineArea,
+            Box = 1,
+            Range = 2,
+            Texture = 3,
+            SplineArea = 4,
         }
 
         public enum FilterTypeNoGlobalNoPaintMask
         {
-            Box,
-            Range,
-            Texture,
-            SplineArea,
+            Box = 1,
+            Range = 2,
+            Texture = 3,
+            SplineArea = 4,
         }
 
         public enum TextureChannel
@@ -51,11 +54,32 @@ namespace JBooth.MicroVerseCore
             A
         }
 
+
+
+        public static TTarget CastEnum<TSource, TTarget>(TSource source, TTarget fallback)
+            where TSource : Enum
+            where TTarget : Enum
+        {
+            string sourceName = Enum.GetName(typeof(TSource), source);
+
+            if (Enum.GetNames(typeof(TTarget)).Contains(sourceName))
+            {
+                return (TTarget)Enum.Parse(typeof(TTarget), sourceName);
+            }
+            else
+            {
+                return fallback;
+            }
+        }
+
+
+
         public FilterType filterType;
         public Texture2D texture;
         public TextureChannel textureChannel = TextureChannel.R;
         public Vector2 textureParams = new Vector2(1, 0); // amplitude, balance
         public Vector4 textureRotationScale = new Vector4(0, 1, 0, 0);
+        public bool clampTexture;
 
         [System.Serializable]
         public class PaintMask
@@ -70,12 +94,19 @@ namespace JBooth.MicroVerseCore
             };
 
             [System.NonSerialized] public Texture2D texture;
-            
+
             public byte[] bytes;
             public Size size = Size.k256;
 
             [System.NonSerialized]
             public bool painting = false;
+
+            public enum UpdateMode
+            {
+                EveryChange,
+                EndStroke
+            }
+            public UpdateMode updateMode = UpdateMode.EveryChange;
 
             public void Clear()
             {
@@ -101,6 +132,10 @@ namespace JBooth.MicroVerseCore
                     RenderTexture.ReleaseTemporary(rt);
                     Pack();
                 }
+                else if (texture == null)
+                    size = newSize;
+                
+
             }
 
             public void Fill(float val)
@@ -110,9 +145,9 @@ namespace JBooth.MicroVerseCore
                     Unpack();
                 }
                 Color c = new Color(val, 0, 0, 0);
-                for (int x = 0; x < (int)size; ++x)
+                for (int x = 0; x < texture.width; ++x)
                 {
-                    for (int y = 0; y < (int)size; ++y)
+                    for (int y = 0; y < texture.height; ++y)
                     {
                         texture.SetPixel(x, y, c);
                     }
@@ -153,17 +188,20 @@ namespace JBooth.MicroVerseCore
             public void Paint(float x, float y, float brushSize,
                 float brushFalloff, float brushFlow, float targetValue, double deltaTime)
             {
-                int isize = (int)size;
-                int bx = Mathf.RoundToInt(Mathf.Clamp(x * isize - brushSize, 0, isize));
-                int by = Mathf.RoundToInt(Mathf.Clamp(y * isize - brushSize, 0, isize));
-                int tx = Mathf.RoundToInt(Mathf.Clamp(x * isize + brushSize, 0, isize));
-                int ty = Mathf.RoundToInt(Mathf.Clamp(y * isize + brushSize, 0, isize));
-                
+                if (texture == null)
+                    Unpack();
+                int isize = texture.width;
+                float brushSizeMult = brushSize * ((float)isize / 512);
+                int bx = Mathf.RoundToInt(Mathf.Clamp(x * isize - brushSizeMult, 0, isize));
+                int by = Mathf.RoundToInt(Mathf.Clamp(y * isize - brushSizeMult, 0, isize));
+                int tx = Mathf.RoundToInt(Mathf.Clamp(x * isize + brushSizeMult, 0, isize));
+                int ty = Mathf.RoundToInt(Mathf.Clamp(y * isize + brushSizeMult, 0, isize));
+
                 for (int xp = bx; xp < tx; ++xp)
                 {
                     for (int yp = by; yp < ty; ++yp)
                     {
-                        float w = Vector2.Distance(new Vector2(x * isize, y * isize), new Vector2(xp, yp)) / brushSize;
+                        float w = Vector2.Distance(new Vector2(x * isize, y * isize), new Vector2(xp, yp)) / brushSizeMult;
                         w = 1 - Mathf.Clamp01(w);
                         w = Mathf.Pow(w, brushFalloff);
                         w *= brushFlow;
@@ -173,16 +211,85 @@ namespace JBooth.MicroVerseCore
                         texture.SetPixel(xp, yp, c);
                     }
                 }
-                texture.Apply(); 
+                texture.Apply();
                 Pack();
             }
+
+
+            public void Smooth(float x, float y, float brushSize,
+                float brushFalloff, float brushFlow, float targetValue, double deltaTime)
+            {
+                if (texture == null)
+                    Unpack();
+
+                int isize = texture.width;
+                int bx = Mathf.RoundToInt(Mathf.Clamp(x * isize - brushSize, 0, isize));
+                int by = Mathf.RoundToInt(Mathf.Clamp(y * isize - brushSize, 0, isize));
+                int tx = Mathf.RoundToInt(Mathf.Clamp(x * isize + brushSize, 0, isize));
+                int ty = Mathf.RoundToInt(Mathf.Clamp(y * isize + brushSize, 0, isize));
+
+                // Compute smoothRadius based on brushSize
+                int smoothRadius = Mathf.RoundToInt(brushSize);
+
+                // Apply a smoothing operation
+                for (int xp = bx - smoothRadius; xp < tx + smoothRadius; ++xp)
+                {
+                    for (int yp = by - smoothRadius; yp < ty + smoothRadius; ++yp)
+                    {
+                        if (xp >= 0 && xp < isize && yp >= 0 && yp < isize)
+                        {
+                            float sumWeights = 0f;
+                            Color avgColor = new Color(0, 0, 0, 0);
+                            float w = Vector2.Distance(new Vector2(x * isize, y * isize), new Vector2(xp, yp)) / brushSize;
+                            w = 1 - Mathf.Clamp01(w);
+                            w = Mathf.Pow(w, brushFalloff);
+                            w *= brushFlow;
+                            w *= (float)deltaTime;
+                            w *= 10;
+                            for (int i = -3; i < 3; i++)
+                            {
+                                for (int j = -3; j < 1; j++)
+                                {
+                                    int nx = xp + i;
+                                    int ny = yp + j;
+
+                                    if (nx >= 0 && nx < isize && ny >= 0 && ny < isize)
+                                    {
+                                        float neighborDistance = Vector2.Distance(new Vector2(xp, yp), new Vector2(nx, ny)) / brushSize;
+                                        float neighborWeight = Mathf.Pow(1 - Mathf.Clamp01(neighborDistance), brushFalloff);
+
+                                        avgColor += texture.GetPixel(nx, ny) * neighborWeight;
+                                        sumWeights += neighborWeight;
+                                    }
+                                }
+                            }
+
+                            if (sumWeights > 0)
+                            {
+                                avgColor /= sumWeights;
+                                Color c = texture.GetPixel(xp, yp);
+                                avgColor = Color.Lerp(c, avgColor, w);
+                                texture.SetPixel(xp, yp, avgColor);
+                            }
+                        }
+                    }
+                }
+
+                texture.Apply();
+                Pack();
+            }
+
+
         }
+
 
 #if __MICROVERSE_SPLINES__
         public SplineArea splineArea;
         public float splineAreaFalloff;
         public float splineAreaFalloffBoost;
 #endif
+
+        public PaintFalloffArea paintArea;
 
 
         public Easing easing = new Easing();
@@ -198,7 +305,10 @@ namespace JBooth.MicroVerseCore
         static int _FalloffTextureRotScale = Shader.PropertyToID("_FalloffTextureRotScale");
         static int _FalloffAreaRange = Shader.PropertyToID("_FalloffAreaRange");
         static int _FalloffAreaBoost = Shader.PropertyToID("_FalloffAreaBoost");
-
+        static int _PaintAreaMatrix = Shader.PropertyToID("_PaintAreaMatrix");
+        static int _PaintAreaFalloffTexture = Shader.PropertyToID("_PaintAreaFalloffTexture");
+        static int _PaintAreaClamp = Shader.PropertyToID("_PaintAreaClamp");
+        static int _TerrainSize = Shader.PropertyToID("_TerrainSize");
 
         FalloffFilter useFilter = null;
         FalloffFilter GetUseFilter(Transform transform)
@@ -234,6 +344,17 @@ namespace JBooth.MicroVerseCore
                 mat.SetVector(_Falloff, useFilter.falloffRange);
             }
 #endif
+            if (useFilter.paintArea != null)
+            {
+                keywords.Add("_USEFALLOFFPAINTAREA");
+                if (useFilter.paintArea.paintMask.texture == null)
+                    useFilter.paintArea.paintMask.Unpack();
+ 
+                mat.SetTexture(_PaintAreaFalloffTexture, useFilter.paintArea.paintMask.texture);
+                mat.SetMatrix(_PaintAreaMatrix, useFilter.paintArea.transform.worldToLocalMatrix);
+                mat.SetFloat(_PaintAreaClamp, useFilter.paintArea.clampOutsideOfBounds ? 1.0f : 0.0f);
+                mat.SetVector(_TerrainSize, terrain.terrainData.size);
+            }
         }
 
         public void PrepareMaterial(Material mat, Transform transform, List<string> keywords)
@@ -264,6 +385,8 @@ namespace JBooth.MicroVerseCore
                 mat.SetVector(_FalloffTextureParams, useFilter.textureParams);
                 mat.SetVector(_FalloffTextureRotScale, useFilter.textureRotationScale);
                 mat.SetVector(_Falloff, useFilter.falloffRange);
+                if (clampTexture)
+                    keywords.Add("_CLAMPFALLOFFTEXTURE");
             }
             else if (useFilter.filterType == FilterType.PaintMask)
             {

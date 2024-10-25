@@ -29,13 +29,13 @@ Shader "Hidden/MicroVerse/ObjectFilter"
             #pragma shader_feature_local_fragment _ _TEXTUREFILTER
             #pragma target 5.0
 
-            #include "UnityCG.cginc"
+            #include_with_pragmas "UnityCG.cginc"
 
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Filtering.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Filtering.cginc"
 
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/SDFFilter.cginc"
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Quaternion.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/SDFFilter.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Quaternion.cginc"
 
             sampler2D _MainTex;
             sampler2D _PlacementMask;
@@ -58,8 +58,6 @@ Shader "Hidden/MicroVerse/ObjectFilter"
             float _HeightOffset;
             int _TerrainPixelCount;
             float _ModWidth;
-            float3 _TerrainSize;
-            float3 _TerrainPosition;
 
             sampler2D _RandomTex;
 
@@ -101,7 +99,7 @@ Shader "Hidden/MicroVerse/ObjectFilter"
                 int scaleLock; // none, xy, xz, yz, xyz
                 int rotationLock;
                 float slopeAlignment;
-                float sink;
+                float2 sink;
                 float scaleMultiplierAtBoundaries;
             
                 int flags;
@@ -112,6 +110,7 @@ Shader "Hidden/MicroVerse/ObjectFilter"
 
             bool GetFlagDensityByWeight(Randomization r) { return (r.flags & (1 << 3)) == 0; }
             bool GetFlagDisabled(Randomization r) { return (!(r.flags & (1 << 4)) == 0); }
+            bool GetFlagAlignDownhill(Randomization r) { return (!(r.flags & (1 << 5)) == 0); }
 
             float4 NextRandom(float cellIdx)
             {
@@ -161,8 +160,6 @@ Shader "Hidden/MicroVerse/ObjectFilter"
 
                 float sdf = SDFFilter(uv);
 
-                // do not saturate! will break scaling by weight
-
                 float result = (DoFilters(uv, stampUV, noiseUV));
 
                 float height = UnpackHeightmap(_Heightmap.Sample(shared_linear_clamp, uv));
@@ -182,7 +179,7 @@ Shader "Hidden/MicroVerse/ObjectFilter"
                     }
                     texMask = saturate(texMask);
                 #endif
-                float r = NextRandom(cellIdx * 3).x;
+                float r = NextRandom(cellIdx * 3).xy;
                 float w = result * sdf * texMask * mask * mask2;
                 if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1 || w < r || cellIdx > _InstanceCount)
                     w = -1;
@@ -229,9 +226,7 @@ Shader "Hidden/MicroVerse/ObjectFilter"
 
                     // get data for that tree index
                     Randomization random = _Randomizations[objectIndex];
-                    // apply sink
-                    height -= random.sink/_RealSize.y;
-
+                    
                     if (GetFlagDisabled(random))
                     {
                         w = -1;
@@ -256,6 +251,10 @@ Shader "Hidden/MicroVerse/ObjectFilter"
                         float scaleX = lerp(random.scaleRangeX.x, random.scaleRangeX.y, randomValues.y);
                         float scaleY = lerp(random.scaleRangeY.x, random.scaleRangeY.y, randomValues.z);
                         float scaleZ = lerp(random.scaleRangeZ.x, random.scaleRangeZ.y, randomValues.w);
+
+                        // apply sink
+                        height -= lerp(random.sink.x, random.sink.y, randomValues.x) /_RealSize.y;
+
 
                         // none, xy, xz, yz, xyz
                         if (random.rotationLock == 1)
@@ -293,13 +292,30 @@ Shader "Hidden/MicroVerse/ObjectFilter"
                             scaleY = scaleX;
                             scaleZ = scaleX;
                         }
+                       
 
+                        float4 qslopeAlign = 0;
+                        
+                        if (GetFlagAlignDownhill(random))
+                        {
+                            float3 right = float3(1,0,0);
+                            if (normal.y < 1)
+                            {
+                                right = cross(normal, float3(0,1,0));
+                            }
+                            float4 qAlign = q_look_at(right, -normal);
+                            float4 qPlane = q_look_at(right, float3(0, -1, 0)); 
+                            qslopeAlign = q_slerp(qPlane, qAlign, random.slopeAlignment);
+                        }
+                        else
+                        {
+                            float3 slopeAlign = lerp(float3(0,0,0), float3(normal.z * 90, 0, normal.x * -90), random.slopeAlignment);
+                            slopeAlign = radians(slopeAlign);
+                            qslopeAlign = euler_to_quaternion(slopeAlign);
+                        }
                         float3 rot = float3(rotX, rotY, rotZ);
-                        float3 slopeAlign = lerp(float3(0,0,0), float3(normal.z * 90, 0, normal.x * -90), random.slopeAlignment);
                         rot = radians(rot);
-                        slopeAlign = radians(slopeAlign);
                         float4 qrot = euler_to_quaternion(rot);
-                        float4 qslopeAlign = euler_to_quaternion(slopeAlign);
                         float4 fq = qmul(qslopeAlign, qrot);
                         o.rotation = fq;
 

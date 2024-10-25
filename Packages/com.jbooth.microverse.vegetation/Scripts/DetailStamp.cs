@@ -241,6 +241,10 @@ namespace JBooth.MicroVerseCore
                 return foFilter.splineArea.GetBounds();
             }
 #endif
+            if (foType == FalloffFilter.FilterType.Global && foFilter.paintArea != null && foFilter.paintArea.clampOutsideOfBounds)
+            {
+                return foFilter.paintArea.GetBounds();
+            }
 
             if (foType == FalloffFilter.FilterType.Global)
                 return new Bounds(Vector3.zero, new Vector3(99999, 999999, 99999));
@@ -356,8 +360,7 @@ namespace JBooth.MicroVerseCore
             filterSet.PrepareTransform(this.transform, dd.terrain, material, keywordBuilder.keywords, GetTerrainScalingFactor(dd.terrain));
             
             keywordBuilder.Assign(material);
-            RenderTexture rt = RenderTexture.GetTemporary(dd.terrain.terrainData.detailWidth, dd.terrain.terrainData.detailHeight, 0,
-            RenderTextureFormat.R8);
+            RenderTexture rt = RenderTexture.GetTemporary(dd.terrain.terrainData.detailWidth, dd.terrain.terrainData.detailHeight, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm);
             rt.name = "DetailStamp::rt";
             
             Graphics.Blit(null, rt, material);

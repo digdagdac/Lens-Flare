@@ -14,6 +14,7 @@ Shader "Hidden/MicroVerse/HeightAreaEffectStamp"
             #pragma fragment frag
 
             #pragma shader_feature_local_fragment _ _USEFALLOFF _USEFALLOFFRANGE _USEFALLOFFTEXTURE _USEFALLOFFSPLINEAREA
+            #pragma shader_feature_local_fragment _ _USEFALLOFFPAINTAREA
 
             #pragma shader_feature_local_fragment _ _FALLOFFSMOOTHSTEP _FALLOFFEASEIN _FALLOFFEASEOUT _FALLOFFEASEINOUT
             #pragma shader_feature_local_fragment _ _FALLOFFNOISE _FALLOFFFBM _FALLOFFWORLEY _FALLOFFWORM _FALLOFFWORMFBM _FALLOFFNOISETEXTURE
@@ -26,9 +27,9 @@ Shader "Hidden/MicroVerse/HeightAreaEffectStamp"
             // precision.
             #define kMaxHeight          (32766.0f/65535.0f)
 
-            #include "UnityCG.cginc"
-            #include "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
-            #include "/../HeightStampFiltering.cginc"
+            #include_with_pragmas "UnityCG.cginc"
+            #include_with_pragmas "Packages/com.jbooth.microverse/Scripts/Shaders/Noise.cginc"
+            #include_with_pragmas "/../HeightStampFiltering.cginc"
 
             struct vertexInput
             {
@@ -44,7 +45,7 @@ Shader "Hidden/MicroVerse/HeightAreaEffectStamp"
             };
 
             sampler2D _MainTex;
-            
+            float4 _MainTex_TexelSize;
             sampler2D _RemapCurve;
 
             sampler2D _NoiseNoiseTexture;
@@ -61,6 +62,7 @@ Shader "Hidden/MicroVerse/HeightAreaEffectStamp"
             float _BeachDistance;
             float _BeachPower;
             float _WorldPosY;
+ 
             
             float4x4 _Transform;
 

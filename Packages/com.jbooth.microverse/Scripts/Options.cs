@@ -11,11 +11,11 @@ namespace JBooth.MicroVerseCore
         {
             public enum TerrainSearchMethod
             {
-                Heriarchy,
+                Hierarchy,
                 AllInScene
             }
-            [Tooltip("When working with multiple scenes, it can be useful to have MicroVerse find all terrains in all scenes instead of only working with the ones below it in the heriarchy")]
-            public TerrainSearchMethod terrainSearchMethod = TerrainSearchMethod.Heriarchy;
+            [Tooltip("When working with multiple scenes, it can be useful to have MicroVerse find all terrains in all scenes instead of only working with the ones below it in the hierarchy")]
+            public TerrainSearchMethod terrainSearchMethod = TerrainSearchMethod.Hierarchy;
             [Tooltip("Some terrain shaders need the terrain layers to stay in sync between terrains - this can increase the number of splat maps needed by increasing the texture count when some textures are only used on some terrains")]
             public bool keepLayersInSync = false;
             [Tooltip("Unity's API for updating terrains is really slow, MicroVerse tries to sneak these in on things like mouse up events. This will control how many terrains it attempts to sync back on such events.")]
@@ -48,7 +48,13 @@ namespace JBooth.MicroVerseCore
         public Settings settings = new Settings();
         public Colors colors = new Colors();
 
+        public enum GizmoVisibility
+        {
+            GizmosOff,
+            Culled,
+            AlwaysVisible
+        }
+
+        public GizmoVisibility gizmoVisibility = GizmoVisibility.Culled;
     }
-
-
 }

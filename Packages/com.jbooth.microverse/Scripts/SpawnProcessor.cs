@@ -51,7 +51,7 @@ namespace JBooth.MicroVerseCore
                 IObjectModifier om = m as IObjectModifier;
 #endif
 #if __MICROVERSE_VEGETATION__
-                if (tm != null)
+                if (tm != null && tm.IsEnabled())
                 {
                     if (terrainBounds.Intersects(tm.GetBounds()))
                     {

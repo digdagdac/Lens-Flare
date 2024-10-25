@@ -11,7 +11,7 @@ namespace JBooth.MicroVerseCore
             Terrace,
             Beach,
             RemapCurve,
-            Noise
+            Noise,
         }
 
         [Tooltip("Effect to apply")]
@@ -31,6 +31,7 @@ namespace JBooth.MicroVerseCore
         [Tooltip("Allows you to control the curve of adjustment")]
         [Range(0.25f, 4)] public float beachPower = 1;
         public AnimationCurve remapCurve = AnimationCurve.Linear(0, 0, 1, 1);
+
 
         Material material;
 
@@ -94,6 +95,10 @@ namespace JBooth.MicroVerseCore
                 return foFilter.splineArea.GetBounds();
             }
 #endif
+            if (foType == FalloffFilter.FilterType.Global && foFilter.paintArea != null && foFilter.paintArea.clampOutsideOfBounds)
+            {
+                return foFilter.paintArea.GetBounds();
+            }
             return TerrainUtil.GetBounds(transform);
         }
 

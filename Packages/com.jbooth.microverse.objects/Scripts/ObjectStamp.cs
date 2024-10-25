@@ -161,8 +161,7 @@ namespace JBooth.MicroVerseCore
 
         public string id;
 
-
-        [System.NonSerialized] public List<GameObject> spawnedInstances = new List<GameObject>();
+        public List<GameObject> spawnedInstances = new List<GameObject>();
 
         public enum Lock
         {
@@ -191,13 +190,13 @@ namespace JBooth.MicroVerseCore
             public Lock rotationLock;
             public float slopeAlignment;
 
-            public float sink;
+            public Vector2 sink;
             public float scaleMultiplierAtBoundaries;
             
             public int flags;
             public bool densityByWeight { get { return (flags & (1 << 3)) == 0; } set { if (!value) flags |= 1 << 3; else flags &= ~(1 << 3); } }
-
             public bool disabled { get { return !((flags & (1 << 4)) == 0); } set { if (value) flags |= 1 << 4; else flags &= ~(1 << 4); } }
+            public bool alignDownhill { get { return !((flags & (1 << 5)) == 0); } set { if (value) flags |= 1 << 5; else flags &= ~(1 << 5); } }
 
         }
 
@@ -298,6 +297,11 @@ namespace JBooth.MicroVerseCore
                 return foFilter.splineArea.GetBounds();
             }
 #endif
+
+            if (foType == FalloffFilter.FilterType.Global && foFilter.paintArea != null && foFilter.paintArea.clampOutsideOfBounds)
+            {
+                return foFilter.paintArea.GetBounds();
+            }
             if (foType == FalloffFilter.FilterType.Global)
                 return new Bounds(Vector3.zero, new Vector3(99999, 999999, 99999));
             else
@@ -360,7 +364,7 @@ namespace JBooth.MicroVerseCore
             {
                 foreach (var obj in spawnedInstances)
                 {
-                    if (obj != null)
+                    if (obj != null && obj != parentObject && obj != gameObject)
                         DestroyImmediate(obj);
                 }
             }
@@ -376,7 +380,7 @@ namespace JBooth.MicroVerseCore
             spawnedInstances.Clear();
             foreach (var t in parentObjects)
             {
-                if (t.transform != null)
+                if (t.transform != null && t.transform != parentObject)
                 {
                     DestroyImmediate(t.transform.gameObject);
                 }
@@ -453,8 +457,7 @@ namespace JBooth.MicroVerseCore
         static int _YCount = Shader.PropertyToID("_YCount");
 
 
-        Transform rootParentTransform;
-
+        
         public Transform FindParentInScene(Terrain t)
         {
             var scene = t.gameObject.scene;
@@ -479,6 +482,9 @@ namespace JBooth.MicroVerseCore
             if (prototypes.Count == 0)
                 return;
 
+            ClearSpawnedInstances();
+
+            Transform rootParentTransform = parentObject;
             if (parentObject != null)
             {
                 parentObjects.Add(new ParentObjectEntry() { terrain = td.terrain, transform = parentObject });
@@ -503,6 +509,7 @@ namespace JBooth.MicroVerseCore
                         trans.localRotation = Quaternion.identity;
                         trans.localScale = Vector3.one;
                         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(trans.gameObject, td.terrain.gameObject.scene);
+                        parentObject = trans;
                     }
                     parentObjects.Add(new ParentObjectEntry() { terrain = td.terrain, transform = trans });
                     rootParentTransform = trans;
@@ -523,6 +530,7 @@ namespace JBooth.MicroVerseCore
                         trans.localRotation = Quaternion.identity;
                         trans.localScale = Vector3.one;
                         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(trans.gameObject, td.terrain.gameObject.scene);
+                        parentObject = trans;
                     }
                     parentObjects.Add(new ParentObjectEntry() { terrain = td.terrain, transform = trans });
                 }
@@ -531,7 +539,7 @@ namespace JBooth.MicroVerseCore
                     parentObjects.Add(new ParentObjectEntry() { terrain = td.terrain, transform = rootParentTransform });
                 }
             }
-
+            
             UnityEngine.Profiling.Profiler.BeginSample("Object Modifier");
             var textureLayerWeights = filterSet.GetTextureWeights(od.terrain.terrainData.terrainLayers);
             prototypeIndexes = new int[prototypes.Count];
@@ -747,6 +755,7 @@ namespace JBooth.MicroVerseCore
             if (material != null) DestroyImmediate(material);
             if (heightModMat != null) DestroyImmediate(heightModMat);
             if (splatModMat != null) DestroyImmediate(splatModMat);
+            RevealHiddenObjects();
             base.OnDestroy();
         }
 
@@ -768,6 +777,29 @@ namespace JBooth.MicroVerseCore
                 }
             }
             sdfs.Clear();
+        }
+
+        public void RevealHiddenObjects()
+        {
+            List<Transform> clearedList = new List<Transform>();
+            foreach(ParentObjectEntry entry in parentObjects)
+            {
+                if(entry == null || clearedList.Contains(entry.transform) || entry.transform.childCount == 0)
+                {
+                    continue;
+                }
+
+                for(int i = 0; i < entry.transform.childCount; i++)
+                {
+                    Transform child = entry.transform.GetChild(i);
+                    if (child.gameObject.hideFlags.HasFlag(HideFlags.HideInHierarchy))
+                    {
+                        child.gameObject.hideFlags &= ~HideFlags.HideInHierarchy;
+                    }
+                }
+
+                clearedList.Add(entry.transform);
+            }
         }
 
 

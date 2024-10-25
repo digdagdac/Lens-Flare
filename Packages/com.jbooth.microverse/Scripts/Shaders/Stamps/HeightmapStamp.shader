@@ -24,6 +24,8 @@
             #pragma shader_feature_local_fragment _ _USEPOWORTILT
             #pragma shader_feature_local_fragment _ _USEHEIGHTREMAPCUVE
 
+            #pragma shader_feature_local_fragment _ _USEFALLOFFPAINTAREA
+
             #pragma shader_feature_local _ _FALLOFFSMOOTHSTEP _FALLOFFEASEIN _FALLOFFEASEOUT _FALLOFFEASEINOUT
             #pragma shader_feature_local _ _FALLOFFNOISE _FALLOFFFBM _FALLOFFWORLEY _FALLOFFWORM _FALLOFFWORMFBM _FALLOFFNOISETEXTURE
 
@@ -31,9 +33,9 @@
             // precision.
             #define kMaxHeight          (32766.0f/65535.0f)
 
-            #include "UnityCG.cginc"
-            #include "/../Noise.cginc"
-            #include "/../HeightStampFiltering.cginc"
+            #include_with_pragmas "UnityCG.cginc"
+            #include_with_pragmas "/../Noise.cginc"
+            #include_with_pragmas "/../HeightStampFiltering.cginc"
 
             struct vertexInput
             {
@@ -51,7 +53,6 @@
             Texture2D _MainTex;
             Texture2D _HeightRemapCurve;
             SamplerState shared_point_clamp;
-            SamplerState shared_linear_clamp;
             
             float2 _HeightRemap;
             float2 _HeightRenorm;
@@ -137,14 +138,15 @@
                     return heightSample;
                 float height = UnpackHeightmap(heightSample);
 
-                float2 noiseUV = (i.uv * _NoiseUV.z) + _NoiseUV.xy;
+                float2 noiseUV = (i.uv * _NoiseUV.z) + _NoiseUV.xy * _NoiseUV.z;
+
                 float2 stampUV = i.stampUV * _ScaleOffset.xy + _ScaleOffset.zw;
 
                 #if _TWIST
                     stampUV = RadialUV(i.stampUV, 0.5, _Twist, 0);
                 #endif
 
-                float stamp = tex2Dbias(_StampTex, float4(stampUV, 0, _MipBias)).r;
+                float stamp = tex2Dlod(_StampTex, float4(stampUV, 0, _MipBias)).r;
 
                 stamp = abs(_Invert - stamp);
 

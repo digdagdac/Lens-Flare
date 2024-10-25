@@ -1,11 +1,12 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace JBooth.MicroVerseCore
 {
     [System.Serializable]
-    public class Noise
+    public class Noise : ICloneable
     {
         public enum NoiseType
         {
@@ -31,7 +32,7 @@ namespace JBooth.MicroVerseCore
         public float offset = 0;
         [Range(-0.5f, 0.5f)] public float balance = 0;
         public Texture2D texture;
-        public Vector4 textureST = new Vector4(0, 0, 1, 1);
+        public Vector4 textureST = new Vector4(1, 1, 0, 0);
         public FalloffFilter.TextureChannel channel = FalloffFilter.TextureChannel.R;
         public float displayGamma = 0;
 
@@ -114,6 +115,11 @@ namespace JBooth.MicroVerseCore
                 string key = KeywordLookup(prefix, noiseType);
                 keywords.Add(key);
             }
+        }
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
         }
     }
 }

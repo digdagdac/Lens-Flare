@@ -150,7 +150,7 @@ namespace JBooth.MicroVerseCore
             Profiler.BeginSample("Nine Expand");
 
             var myMask = tempRenderData[t].currentTreeMask;
-            var expandedRT = RenderTexture.GetTemporary(myMask.width + borderPixels * 2, myMask.height + borderPixels * 2, 0, RenderTextureFormat.R8);
+            var expandedRT = RenderTexture.GetTemporary(myMask.width + borderPixels * 2, myMask.height + borderPixels * 2, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
             //RenderTexture.active = expandedRT;
             //GL.Clear(true, true, Color.black);
             Graphics.CopyTexture(myMask, 0, 0, 0, 0, myMask.width, myMask.height, expandedRT, 0, 0, borderPixels, borderPixels);
