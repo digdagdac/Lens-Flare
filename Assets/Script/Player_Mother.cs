@@ -63,12 +63,23 @@ namespace LensFlare.InGame
                     inputVelocity.x = -1f;
                 }
 
+
+
                 _playerRigidBody.AddForce(inputVelocity * Time.deltaTime * _moveSpeed);
 
+                // Limit max velocity
                 if (_playerRigidBody.linearVelocity.sqrMagnitude > _maxVelocity)
                 {
                     _playerRigidBody.linearVelocity *= 0.98f;
                 }
+
+                // Set Visual Looking Direction
+                if (_playerRigidBody.linearVelocity.sqrMagnitude > 0.1f)
+                {
+                    transform.rotation = Quaternion.LookRotation(_playerRigidBody.linearVelocity);
+                }
+
+
             }
 
 
