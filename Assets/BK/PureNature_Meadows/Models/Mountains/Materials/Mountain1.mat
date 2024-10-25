@@ -28,11 +28,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: 798fe51de4bb4324f85d77e00a470e4e, type: 3}
+        m_Texture: {fileID: 2800000, guid: abb3a1b3eeba405aa8020a90f438c540, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedo:
-        m_Texture: {fileID: 2800000, guid: 8e63fc7b2d1541e4eaa23d21fcb56688, type: 3}
+        m_Texture: {fileID: 2800000, guid: 74848f042ef647c6a75740464c4286d6, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -44,11 +44,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailMetallicGlossMap:
-        m_Texture: {fileID: 2800000, guid: 984bdff50661bab47866e0c8592c0cab, type: 3}
+        m_Texture: {fileID: 2800000, guid: ef48330272434fa6bbb867d43b539f83, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailNormalMap:
-        m_Texture: {fileID: 2800000, guid: 928cfdb84b688ed498cb3b554430c313, type: 3}
+        m_Texture: {fileID: 2800000, guid: bad155c3a6ed442b8e02e15669600978, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
@@ -68,11 +68,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 035ab1d23ac5aee45b766b684d869118, type: 3}
+        m_Texture: {fileID: 2800000, guid: 51f8ffa44f2a49a5b5efa6299942eeac, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
-        m_Texture: {fileID: 2800000, guid: babedba74382d8749ba047858547ccad, type: 3}
+        m_Texture: {fileID: 2800000, guid: 3cafb29d7c8c4df2bee2bb9649c185d3, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -87,15 +87,29 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _2ndNormalPower: 1
+    - _AlphaCutoff: 0.5
     - _BlendNormals: 1
     - _BlendPower: 1
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _EnvironmentReflections: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
@@ -110,6 +124,9 @@ Material:
     - _OcclusionPower: 0
     - _OcclusionStrength: 0.5
     - _Parallax: 0.02
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
     - _SecondNormalPower: 1
     - _SmoothnessPower: 0
     - _SmoothnessTextureChannel: 0

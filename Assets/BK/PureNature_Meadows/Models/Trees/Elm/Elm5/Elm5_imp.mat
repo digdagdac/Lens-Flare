@@ -25,31 +25,45 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _ColorVariationNoise:
-        m_Texture: {fileID: 2800000, guid: b457fe5533d16f841bd72c5372833ef6, type: 3}
+        m_Texture: {fileID: 2800000, guid: 7372d17bf24a4314a87fb4b66608b14e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Diffuse:
-        m_Texture: {fileID: 2800000, guid: 9fbe6e099d8183443b53e2b156bfaad0, type: 3}
+        m_Texture: {fileID: 2800000, guid: 138d5d6291b64892ae27cee0c2789150, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Mask:
-        m_Texture: {fileID: 2800000, guid: 3e5190085b5d4cf4a91a71d071105408, type: 3}
+        m_Texture: {fileID: 2800000, guid: 33f619fef6fc45aa830ac9f89b2ed469, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal:
-        m_Texture: {fileID: 2800000, guid: ea01d93444eafae4a8560b5144d8051e, type: 3}
+        m_Texture: {fileID: 2800000, guid: 3f23b49a73c14638824f71a428ada4ac, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _texcoord:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AlphaCutoff: 0.5
     - _ColorVariationPower: 0.4
     - _Cull: 2
     - _Cutoff: 0.5
     - _DoubleSidedNormalMode: 0
+    - _EnvironmentReflections: 1
     - _GradientFalloff: 0
     - _GradientPosition: 0
     - _HidePower: 2.5
@@ -57,11 +71,17 @@ Material:
     - _InvertGradient: 0
     - _NoiseScale: 0.07
     - _NormalPower: 1
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _SpecularHighlights: 1
     - _TransAmbient: 0.2
     - _TransDirect: 1
+    - _TransNormal: 0.5
     - _TransNormalDistortion: 0.1
     - _TransScattering: 2
     - _TransShadow: 0.9
+    - _TransStrength: 1
     - _Translucency: 1
     - _VertexOcclusionPower: 0.4
     - _WindMultiplier: 1
@@ -70,6 +90,7 @@ Material:
     - __dirty: 1
     m_Colors:
     - _ColorVariation: {r: 0.15408799, g: 0.5, b: 0.31852975, a: 1}
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _GradientColor: {r: 1, g: 1, b: 1, a: 1}
     - _MainColor: {r: 0.28599778, g: 0.5, b: 0.18238989, a: 1}
   m_BuildTextureStacks: []
